@@ -35,12 +35,6 @@ import org.lastaflute.doc.meta.ActionDocMeta;
 import org.lastaflute.doc.reflector.SourceParserReflector;
 import org.lastaflute.doc.reflector.SourceParserReflectorFactory;
 
-import com.google.gson.TypeAdapter;
-import com.google.gson.internal.bind.TypeAdapters;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonToken;
-import com.google.gson.stream.JsonWriter;
-
 // package of this class should be under lastaflute but no fix for compatible
 /**
  * @author p1us2er0
