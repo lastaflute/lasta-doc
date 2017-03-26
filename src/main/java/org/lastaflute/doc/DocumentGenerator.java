@@ -35,7 +35,6 @@ import org.lastaflute.doc.meta.ActionDocMeta;
 import org.lastaflute.doc.reflector.SourceParserReflector;
 import org.lastaflute.doc.reflector.SourceParserReflectorFactory;
 
-import com.google.gson.GsonBuilder;
 import com.google.gson.TypeAdapter;
 import com.google.gson.internal.bind.TypeAdapters;
 import com.google.gson.stream.JsonReader;
@@ -154,42 +153,13 @@ public class DocumentGenerator {
     }
 
     protected GsonJsonEngine createJsonParser() {
-        return new GsonJsonEngine(builder -> builder.serializeNulls().setPrettyPrinting(), op -> {}) {
-            @Override
-            protected void setupDefaultSettings(GsonBuilder builder) {
-                super.setupDefaultSettings(builder);
-                builder.registerTypeAdapterFactory(TypeAdapters.newFactory(Class.class, CLASS));
-            }
-        };
+        return new GsonJsonEngine(builder -> {
+            builder.serializeNulls().setPrettyPrinting();
+        }, op -> {
+        });
         // not to depend on application settings
         //return SingletonLaContainerFactory.getContainer().getComponent(JsonManager.class);
     }
-
-    @SuppressWarnings("rawtypes")
-    public static final TypeAdapter<Class> CLASS = new TypeAdapter<Class>() {
-        @Override
-        public void write(JsonWriter out, Class value) throws IOException {
-            if (value == null) {
-                out.nullValue();
-            } else {
-                out.value(value.getName());
-            }
-        }
-
-        @Override
-        public Class read(JsonReader in) throws IOException {
-            if (in.peek() == JsonToken.NULL) {
-                in.nextNull();
-                return null;
-            } else {
-                try {
-                    return Class.forName(in.nextString());
-                } catch (ClassNotFoundException exception) {
-                    throw new IOException(exception);
-                }
-            }
-        }
-    };
 
     protected String getLastaDocDir() {
         if (new File("./pom.xml").exists()) {

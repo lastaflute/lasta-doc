@@ -30,7 +30,7 @@ public class ActionDocMeta {
     /** url. */
     private String url;
     /** type. */
-    private Class<?> type;
+    private transient Class<?> type;
     /** type name. */
     private String typeName;
     /** simple type name. */
@@ -46,7 +46,7 @@ public class ActionDocMeta {
     /** method comment. */
     private String methodComment;
     /** annotation type list. */
-    private List<Annotation> annotationTypeList;
+    public transient List<Annotation> annotationTypeList;
     /** annotation list. */
     private List<String> annotationList;
     /** parameter type doc meta list. */
