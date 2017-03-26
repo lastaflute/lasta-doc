@@ -32,7 +32,7 @@ public class TypeDocMeta {
     /** name. */
     private String name;
     /** type. */
-    private Class<?> type;
+    private transient Class<?> type;
     /** type name. */
     private String typeName;
     /** simple type name. */
@@ -44,7 +44,7 @@ public class TypeDocMeta {
     /** comment. */
     private String comment;
     /** annotation type list. */
-    private List<Annotation> annotationTypeList;
+    public transient List<Annotation> annotationTypeList;
     /** annotation list. */
     private List<String> annotationList = DfCollectionUtil.newArrayList();
     /** nest meta bean list. */
