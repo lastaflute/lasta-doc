@@ -20,8 +20,10 @@ import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import org.dbflute.helper.message.ExceptionMessageBuilder;
 import org.dbflute.optional.OptionalThing;
-import org.lastaflute.di.core.factory.SingletonLaContainerFactory;
+import org.lastaflute.core.util.ContainerUtil;
+import org.lastaflute.di.core.exception.ComponentNotFoundException;
 import org.lastaflute.doc.meta.JobDocMeta;
 import org.lastaflute.doc.meta.TypeDocMeta;
 import org.lastaflute.doc.reflector.SourceParserReflector;
@@ -58,8 +60,7 @@ public class JobDocumentGenerator extends BaseDocumentGenerator {
     //                                    Generate Meta List
     //                                    ------------------
     public List<JobDocMeta> generateJobDocMetaList() {
-        org.lastaflute.job.JobManager jobManager =
-                SingletonLaContainerFactory.getContainer().getComponent(org.lastaflute.job.JobManager.class);
+        org.lastaflute.job.JobManager jobManager = getJobManager();
         List<JobDocMeta> metaList = jobManager.getJobList().stream().map(job -> {
             JobDocMeta jobDocMeta = new JobDocMeta();
             jobDocMeta.setJobKey(getNoException(() -> job.getJobKey().value()));
@@ -93,12 +94,29 @@ public class JobDocumentGenerator extends BaseDocumentGenerator {
             jobDocMeta.setParams(getNoException(() -> job.getParamsSupplier().map(paramsSupplier -> paramsSupplier.supply()).orElse(null)));
             jobDocMeta.setNoticeLogLevel(getNoException(() -> job.getNoticeLogLevel().name()));
             jobDocMeta.setConcurrentExec(getNoException(() -> job.getConcurrentExec().name()));
-            jobDocMeta.setTriggeredJobKeyList(getNoException(() -> job.getTriggeredJobKeySet().stream()
-                    .map(triggeredJobKey -> triggeredJobKey.value()).collect(Collectors.toList())));
+            jobDocMeta.setTriggeredJobKeyList(getNoException(() -> job.getTriggeredJobKeySet()
+                    .stream()
+                    .map(triggeredJobKey -> triggeredJobKey.value())
+                    .collect(Collectors.toList())));
 
             return jobDocMeta;
         }).collect(Collectors.toList());
         return metaList;
+    }
+
+    protected org.lastaflute.job.JobManager getJobManager() {
+        try {
+            return ContainerUtil.getComponent(org.lastaflute.job.JobManager.class);
+        } catch (ComponentNotFoundException e) {
+            final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
+            br.addNotice("Not found the job manager as Lasta Di component.");
+            br.addItem("Advice");
+            br.addElement("LastaDoc needs JobManager to get job information.");
+            br.addElement("So confirm your app.xml (or test_app.xml?)");
+            br.addElement("whether the Di xml includes lasta_job.xml or not.");
+            final String msg = br.buildExceptionMessage();
+            throw new IllegalStateException(msg, e);
+        }
     }
 
     protected <T extends Object> T getNoException(Supplier<T> supplier) {
