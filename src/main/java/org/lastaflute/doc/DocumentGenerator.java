@@ -64,6 +64,9 @@ public class DocumentGenerator {
     /** sourceParserReflector. */
     protected final OptionalThing<SourceParserReflector> sourceParserReflector;
 
+    /** Does it suppress job document generation? */
+    protected boolean jobDocSuppressed; // for e.g. heavy scheduling (using e.g. DB) like Fess
+
     // ===================================================================================
     //                                                                         Constructor
     //                                                                         ===========
@@ -102,6 +105,11 @@ public class DocumentGenerator {
 
     public void setDepth(int depth) {
         this.depth = depth;
+    }
+
+    public DocumentGenerator suppressJobDoc() {
+        jobDocSuppressed = true;
+        return this;
     }
 
     // ===================================================================================
@@ -143,14 +151,16 @@ public class DocumentGenerator {
     }
 
     protected OptionalThing<JobDocumentGenerator> createJobDocumentGenerator() {
+        if (jobDocSuppressed) {
+            return OptionalThing.empty();
+        }
         return createDocumentGeneratorFactory().createJobDocumentGenerator(srcDirList, depth, sourceParserReflector);
     }
 
     protected GsonJsonEngine createJsonParser() {
         return new GsonJsonEngine(builder -> {
             builder.serializeNulls().setPrettyPrinting();
-        }, op -> {
-        });
+        }, op -> {});
         // not to depend on application settings
         //return SingletonLaContainerFactory.getContainer().getComponent(JsonManager.class);
     }
