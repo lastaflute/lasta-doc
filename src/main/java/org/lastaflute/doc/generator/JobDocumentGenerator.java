@@ -27,7 +27,6 @@ import org.lastaflute.di.core.exception.ComponentNotFoundException;
 import org.lastaflute.doc.meta.JobDocMeta;
 import org.lastaflute.doc.meta.TypeDocMeta;
 import org.lastaflute.doc.reflector.SourceParserReflector;
-import org.lastaflute.job.LaJob;
 
 /**
  * @author p1us2er0
@@ -61,14 +60,47 @@ public class JobDocumentGenerator extends BaseDocumentGenerator {
     //                                    ------------------
     public List<JobDocMeta> generateJobDocMetaList() {
         org.lastaflute.job.JobManager jobManager = getJobManager();
-        List<JobDocMeta> metaList = jobManager.getJobList().stream().map(job -> {
+        boolean rebooted = automaticallyRebootIfNeeds(jobManager);
+        try {
+            return doGenerateJobDocMetaList(jobManager);
+        } finally {
+            automaticallyDestroyIfNeeds(jobManager, rebooted);
+        }
+    }
+
+    protected org.lastaflute.job.JobManager getJobManager() {
+        try {
+            return ContainerUtil.getComponent(org.lastaflute.job.JobManager.class);
+        } catch (ComponentNotFoundException e) {
+            final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
+            br.addNotice("Not found the job manager as Lasta Di component.");
+            br.addItem("Advice");
+            br.addElement("LastaDoc needs JobManager to get job information.");
+            br.addElement("So confirm your app.xml (or test_app.xml?)");
+            br.addElement("whether the Di xml includes lasta_job.xml or not.");
+            final String msg = br.buildExceptionMessage();
+            throw new IllegalStateException(msg, e);
+        }
+    }
+
+    protected boolean automaticallyRebootIfNeeds(org.lastaflute.job.JobManager jobManager) {
+        if (!jobManager.isSchedulingDone()) { // basically no scheduling in UTFlute
+            jobManager.reboot();
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    protected List<JobDocMeta> doGenerateJobDocMetaList(org.lastaflute.job.JobManager jobManager) {
+        return jobManager.getJobList().stream().map(job -> {
             JobDocMeta jobDocMeta = new JobDocMeta();
             jobDocMeta.setJobKey(getNoException(() -> job.getJobKey().value()));
             jobDocMeta.setJobUnique(getNoException(() -> job.getJobUnique().map(jobUnique -> jobUnique.value()).orElse(null)));
             jobDocMeta.setJobTitle(getNoException(() -> job.getJobNote().flatMap(jobNote -> jobNote.getTitle()).orElse(null)));
             jobDocMeta.setJobDescription(getNoException(() -> job.getJobNote().flatMap(jobNote -> jobNote.getDesc()).orElse(null)));
             jobDocMeta.setCronExp(getNoException(() -> job.getCronExp().orElse(null)));
-            Class<? extends LaJob> jobClass = getNoException(() -> job.getJobType());
+            Class<? extends org.lastaflute.job.LaJob> jobClass = getNoException(() -> job.getJobType());
             if (jobClass != null) {
                 jobDocMeta.setTypeName(jobClass.getName());
                 jobDocMeta.setSimpleTypeName(jobClass.getSimpleName());
@@ -101,22 +133,6 @@ public class JobDocumentGenerator extends BaseDocumentGenerator {
 
             return jobDocMeta;
         }).collect(Collectors.toList());
-        return metaList;
-    }
-
-    protected org.lastaflute.job.JobManager getJobManager() {
-        try {
-            return ContainerUtil.getComponent(org.lastaflute.job.JobManager.class);
-        } catch (ComponentNotFoundException e) {
-            final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
-            br.addNotice("Not found the job manager as Lasta Di component.");
-            br.addItem("Advice");
-            br.addElement("LastaDoc needs JobManager to get job information.");
-            br.addElement("So confirm your app.xml (or test_app.xml?)");
-            br.addElement("whether the Di xml includes lasta_job.xml or not.");
-            final String msg = br.buildExceptionMessage();
-            throw new IllegalStateException(msg, e);
-        }
     }
 
     protected <T extends Object> T getNoException(Supplier<T> supplier) {
@@ -124,6 +140,12 @@ public class JobDocumentGenerator extends BaseDocumentGenerator {
             return supplier.get();
         } catch (Throwable t) {
             return null;
+        }
+    }
+
+    protected void automaticallyDestroyIfNeeds(org.lastaflute.job.JobManager jobManager, boolean rebooted) {
+        if (rebooted) {
+            jobManager.destroy();
         }
     }
 }
