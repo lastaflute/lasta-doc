@@ -85,7 +85,19 @@ public class JobDocumentGenerator extends BaseDocumentGenerator {
 
     protected boolean automaticallyRebootIfNeeds(org.lastaflute.job.JobManager jobManager) {
         if (!jobManager.isSchedulingDone()) { // basically no scheduling in UTFlute
-            jobManager.reboot();
+            try {
+                jobManager.reboot();
+            } catch (RuntimeException e) {
+                final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
+                br.addNotice("Cannot reboot job scheduling for LastaDoc.");
+                br.addItem("Advice");
+                br.addElement("Confirm nested exception message");
+                br.addElement("and your job environment in unit test.");
+                br.addItem("Job Manager");
+                br.addElement(jobManager);
+                final String msg = br.buildExceptionMessage();
+                throw new IllegalStateException(msg, e);
+            }
             return true;
         } else {
             return false;
