@@ -8,7 +8,7 @@ LastaDoc library
 <dependency>
     <groupId>org.lastaflute.doc</groupId>
     <artifactId>lasta-doc</artifactId>
-    <version>0.2.2</version>
+    <version>0.2.3</version>
 </dependency>
 ```
 
