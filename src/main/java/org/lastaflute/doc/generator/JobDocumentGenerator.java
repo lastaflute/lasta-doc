@@ -17,7 +17,6 @@ package org.lastaflute.doc.generator;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.dbflute.helper.message.ExceptionMessageBuilder;
@@ -27,6 +26,7 @@ import org.lastaflute.di.core.exception.ComponentNotFoundException;
 import org.lastaflute.doc.meta.JobDocMeta;
 import org.lastaflute.doc.meta.TypeDocMeta;
 import org.lastaflute.doc.reflector.SourceParserReflector;
+import org.lastaflute.doc.util.LaDocReflectionUtil;
 
 /**
  * @author p1us2er0
@@ -107,12 +107,15 @@ public class JobDocumentGenerator extends BaseDocumentGenerator {
     protected List<JobDocMeta> doGenerateJobDocMetaList(org.lastaflute.job.JobManager jobManager) {
         return jobManager.getJobList().stream().map(job -> {
             JobDocMeta jobDocMeta = new JobDocMeta();
-            jobDocMeta.setJobKey(getNoException(() -> job.getJobKey().value()));
-            jobDocMeta.setJobUnique(getNoException(() -> job.getJobUnique().map(jobUnique -> jobUnique.value()).orElse(null)));
-            jobDocMeta.setJobTitle(getNoException(() -> job.getJobNote().flatMap(jobNote -> jobNote.getTitle()).orElse(null)));
-            jobDocMeta.setJobDescription(getNoException(() -> job.getJobNote().flatMap(jobNote -> jobNote.getDesc()).orElse(null)));
-            jobDocMeta.setCronExp(getNoException(() -> job.getCronExp().orElse(null)));
-            Class<? extends org.lastaflute.job.LaJob> jobClass = getNoException(() -> job.getJobType());
+            jobDocMeta.setJobKey(LaDocReflectionUtil.getNoException(() -> job.getJobKey().value()));
+            jobDocMeta.setJobUnique(LaDocReflectionUtil
+                    .getNoException(() -> job.getJobUnique().map(jobUnique -> jobUnique.value()).orElse(null)));
+            jobDocMeta.setJobTitle(LaDocReflectionUtil
+                    .getNoException(() -> job.getJobNote().flatMap(jobNote -> jobNote.getTitle()).orElse(null)));
+            jobDocMeta.setJobDescription(LaDocReflectionUtil
+                    .getNoException(() -> job.getJobNote().flatMap(jobNote -> jobNote.getDesc()).orElse(null)));
+            jobDocMeta.setCronExp(LaDocReflectionUtil.getNoException(() -> job.getCronExp().orElse(null)));
+            Class<? extends org.lastaflute.job.LaJob> jobClass = LaDocReflectionUtil.getNoException(() -> job.getJobType());
             if (jobClass != null) {
                 jobDocMeta.setTypeName(jobClass.getName());
                 jobDocMeta.setSimpleTypeName(jobClass.getSimpleName());
@@ -135,24 +138,17 @@ public class JobDocumentGenerator extends BaseDocumentGenerator {
                     sourceParserReflector.reflect(jobDocMeta, jobClass);
                 });
             }
-            jobDocMeta.setParams(getNoException(() -> job.getParamsSupplier().map(paramsSupplier -> paramsSupplier.supply()).orElse(null)));
-            jobDocMeta.setNoticeLogLevel(getNoException(() -> job.getNoticeLogLevel().name()));
-            jobDocMeta.setConcurrentExec(getNoException(() -> job.getConcurrentExec().name()));
-            jobDocMeta.setTriggeredJobKeyList(getNoException(() -> job.getTriggeredJobKeySet()
+            jobDocMeta.setParams(LaDocReflectionUtil.getNoException(
+                    () -> job.getParamsSupplier().map(paramsSupplier -> paramsSupplier.supply()).orElse(null)));
+            jobDocMeta.setNoticeLogLevel(LaDocReflectionUtil.getNoException(() -> job.getNoticeLogLevel().name()));
+            jobDocMeta.setConcurrentExec(LaDocReflectionUtil.getNoException(() -> job.getConcurrentExec().name()));
+            jobDocMeta.setTriggeredJobKeyList(LaDocReflectionUtil.getNoException(() -> job.getTriggeredJobKeySet()
                     .stream()
                     .map(triggeredJobKey -> triggeredJobKey.value())
                     .collect(Collectors.toList())));
 
             return jobDocMeta;
         }).collect(Collectors.toList());
-    }
-
-    protected <T extends Object> T getNoException(Supplier<T> supplier) {
-        try {
-            return supplier.get();
-        } catch (Throwable t) {
-            return null;
-        }
     }
 
     protected void automaticallyDestroyIfNeeds(org.lastaflute.job.JobManager jobManager, boolean rebooted) {

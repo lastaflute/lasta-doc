@@ -38,6 +38,7 @@ import org.lastaflute.core.time.TimeManager;
 import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.di.core.factory.SingletonLaContainerFactory;
 import org.lastaflute.di.util.tiger.Tuple3;
+import org.lastaflute.doc.generator.ActionDocumentGenerator;
 import org.lastaflute.doc.meta.TypeDocMeta;
 import org.lastaflute.web.util.LaRequestUtil;
 import org.lastaflute.web.util.LaServletContextUtil;
@@ -92,7 +93,7 @@ public class SwaggerGenerator {
 
     protected void createSwaggerPathMap(List<Map<String, Object>> swaggerTagList, Map<String, Map<String, Object>> swaggerPathMap,
             Map<String, Map<String, Object>> swaggerDefinitionsMap) {
-        new DocumentGenerator().createActionDocumentGenerator().generateActionDocMetaList().stream().forEach(actiondocMeta -> {
+        createActionDocumentGenerator().generateActionDocMetaList().stream().forEach(actiondocMeta -> {
             if (!swaggerPathMap.containsKey(actiondocMeta.getUrl())) {
                 Map<String, Object> swaggerUrlMap = DfCollectionUtil.newLinkedHashMap();
                 swaggerPathMap.put(actiondocMeta.getUrl(), swaggerUrlMap);
@@ -274,6 +275,14 @@ public class SwaggerGenerator {
             valueList = Arrays.stream(constants).map(constant -> constants.toString()).collect(Collectors.toList());
         }
         return valueList;
+    }
+
+    protected DocumentGenerator createDocumentGenerator() {
+        return new DocumentGenerator();
+    }
+
+    protected ActionDocumentGenerator createActionDocumentGenerator() {
+        return createDocumentGenerator().createActionDocumentGenerator();
     }
 
     protected OptionalThing<String> prepareApplicationVersion() {

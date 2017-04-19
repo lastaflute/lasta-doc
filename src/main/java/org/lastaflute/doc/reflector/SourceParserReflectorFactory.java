@@ -15,16 +15,13 @@
  */
 package org.lastaflute.doc.reflector;
 
-import java.io.InputStream;
-import java.net.URL;
-import java.util.Enumeration;
 import java.util.List;
-import java.util.Properties;
 
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfReflectionUtil;
 import org.dbflute.util.DfReflectionUtil.ReflectionFailureException;
 import org.dbflute.util.DfStringUtil;
+import org.lastaflute.doc.util.MavenVersionFinder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +59,7 @@ public class SourceParserReflectorFactory {
     }
 
     public void validateVersion(float leastVersion) {
-        getVersion("com.github.javaparser", "javaparser-core").ifPresent(version -> {
+        getJavaparserVersion().ifPresent(version -> {
             _log.debug("...Loading java parser for version: {}", version);
             String majorMinorVersionStr = version.replaceAll("[^\\d.]", "").replaceAll("(\\d+(\\.\\d+)?).*", "$1");
             if (DfStringUtil.is_NotNull_and_NotEmpty(majorMinorVersionStr)) {
@@ -79,21 +76,12 @@ public class SourceParserReflectorFactory {
         });
     }
 
-    protected OptionalThing<String> getVersion(final String groupId, final String artifactId) {
-        try {
-            final String name = "META-INF/maven/" + groupId + "/" + artifactId + "/pom.properties";
-            final Enumeration<?> urls = Thread.currentThread().getContextClassLoader().getResources(name);
-            while (urls.hasMoreElements()) {
-                URL url = (URL) urls.nextElement();
-                try (InputStream is = url.openStream()) {
-                    final Properties props = new Properties();
-                    props.load(is);
-                    String version = props.getProperty("version");
-                    return OptionalThing.of(version);
-                }
-            }
-        } catch (final Exception ignore) {}
-        return OptionalThing.empty();
+    protected MavenVersionFinder createMavenVersionFinder() {
+        return new MavenVersionFinder();
+    }
+
+    protected OptionalThing<String> getJavaparserVersion() {
+        return createMavenVersionFinder().getVersion("com.github.javaparser", "javaparser-core");
     }
 
     protected static class PleaseUpgradeJavaParserVersion extends RuntimeException {
