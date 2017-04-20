@@ -263,7 +263,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     }
 
     protected ActionPathResolver getActionPathResolver() {
-        return SingletonLaContainerFactory.getContainer().getComponent(ActionPathResolver.class);
+        return ContainerUtil.getComponent(ActionPathResolver.class);
     }
 
     // ===================================================================================
@@ -411,7 +411,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     }
 
     protected String adjustFieldName(Class<?> clazz, Field field) {
-        // TODO awaawa judge accurately
+        // TODO p1us2er0 judge accurately (2017/04/20)
         if (clazz.getSimpleName().endsWith("Form")) {
             return field.getName();
         }
