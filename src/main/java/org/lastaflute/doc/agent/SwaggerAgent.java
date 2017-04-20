@@ -34,7 +34,7 @@ public class SwaggerAgent {
     }
 
     public HtmlResponse prepareSwaggerUiResponse(String swaggerJsonUrl) {
-        return HtmlResponse.fromForwardPath(buildSwaggerUiUrl(swaggerJsonUrl));
+        return toHtmlResponse(buildSwaggerUiUrl(swaggerJsonUrl));
     }
 
     public String buildSwaggerUiUrl(String swaggerJsonUrl) {
@@ -52,5 +52,11 @@ public class SwaggerAgent {
 
     protected MavenVersionFinder createMavenVersionFinder() {
         return new MavenVersionFinder();
+    }
+
+    protected HtmlResponse toHtmlResponse(String swaggerUiUrl) {
+        // swagger-ui's index.html defines css, javascript links as relative path so needs to redirect
+        // (needs deep adjustment if forward: but prefer forward for url on address bar)
+        return HtmlResponse.fromRedirectPath(swaggerUiUrl);
     }
 }
