@@ -20,8 +20,8 @@ import java.util.List;
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfReflectionUtil;
 import org.dbflute.util.DfReflectionUtil.ReflectionFailureException;
+import org.lastaflute.doc.agent.maven.MavenVersionFinder;
 import org.dbflute.util.DfStringUtil;
-import org.lastaflute.doc.util.MavenVersionFinder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,7 +81,7 @@ public class SourceParserReflectorFactory {
     }
 
     protected OptionalThing<String> getJavaparserVersion() {
-        return createMavenVersionFinder().getVersion("com.github.javaparser", "javaparser-core");
+        return createMavenVersionFinder().findVersion("com.github.javaparser", "javaparser-core");
     }
 
     protected static class PleaseUpgradeJavaParserVersion extends RuntimeException {

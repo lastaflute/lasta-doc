@@ -13,7 +13,7 @@
  * either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-package org.lastaflute.doc.util;
+package org.lastaflute.doc.agent.maven;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,24 +25,29 @@ import org.dbflute.optional.OptionalThing;
 
 /**
  * @author p1us2er0
+ * @author jflute
  * @since 0.2.3 (2017/04/20 Thursday)
  */
 public class MavenVersionFinder {
 
-    public OptionalThing<String> getVersion(final String groupId, final String artifactId) {
+    public OptionalThing<String> findVersion(final String groupId, final String artifactId) {
+        final String propPath = "META-INF/maven/" + groupId + "/" + artifactId + "/pom.properties";
+        String version = null;
         try {
-            final String name = "META-INF/maven/" + groupId + "/" + artifactId + "/pom.properties";
-            final Enumeration<?> urls = Thread.currentThread().getContextClassLoader().getResources(name);
+            final Enumeration<?> urls = Thread.currentThread().getContextClassLoader().getResources(propPath);
             while (urls.hasMoreElements()) {
                 final URL url = (URL) urls.nextElement();
                 try (InputStream is = url.openStream()) {
                     final Properties props = new Properties();
                     props.load(is);
-                    final String version = props.getProperty("version");
-                    return OptionalThing.of(version);
+                    version = props.getProperty("version");
+                    break;
                 }
             }
-        } catch (final IOException ignore) {}
-        return OptionalThing.empty();
+        } catch (final IOException ignored) {}
+        return OptionalThing.ofNullable(version, () -> {
+            String msg = "Not found the version in maven: path=" + propPath;
+            throw new IllegalStateException(msg);
+        });
     }
 }
