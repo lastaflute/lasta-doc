@@ -45,8 +45,9 @@ import org.dbflute.util.DfCollectionUtil;
 import org.dbflute.util.DfReflectionUtil;
 import org.dbflute.util.DfStringUtil;
 import org.lastaflute.core.json.JsonManager;
-import org.lastaflute.core.json.SimpleJsonManager;
 import org.lastaflute.core.json.JsonMappingOption.JsonFieldNaming;
+import org.lastaflute.core.json.SimpleJsonManager;
+import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.di.core.ComponentDef;
 import org.lastaflute.di.core.LaContainer;
 import org.lastaflute.di.core.factory.SingletonLaContainerFactory;
@@ -147,7 +148,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
 
         srcDirList.forEach(srcDir -> {
             if (Paths.get(srcDir).toFile().exists()) {
-                try (Stream< Path>stream = Files.find(Paths.get(srcDir), Integer.MAX_VALUE, (path, attr) -> {
+                try (Stream<Path> stream = Files.find(Paths.get(srcDir), Integer.MAX_VALUE, (path, attr) -> {
                     return path.toString().endsWith("Action.java");
                 })) {
                     stream.forEach(path -> {
@@ -347,7 +348,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         }
 
         final Set<Field> fieldSet = DfCollectionUtil.newLinkedHashSet();
-        for (Class< ?>targetClazz = clazz; targetClazz != Object.class; targetClazz = targetClazz.getSuperclass()) {
+        for (Class<?> targetClazz = clazz; targetClazz != Object.class; targetClazz = targetClazz.getSuperclass()) {
             if (targetClazz == null) { // e.g. interface: MultipartFormFile
                 break;
             }
@@ -410,15 +411,15 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     }
 
     protected String adjustFieldName(Class<?> clazz, Field field) {
-        // TODO judge accurately
+        // TODO awaawa judge accurately
         if (clazz.getSimpleName().endsWith("Form")) {
             return field.getName();
         }
-        JsonManager jsonManager = SingletonLaContainerFactory.getContainer().getComponent(JsonManager.class);
+        JsonManager jsonManager = ContainerUtil.getComponent(JsonManager.class);
         if (!(jsonManager instanceof SimpleJsonManager)) {
             return field.getName();
         }
-        OptionalThing<String> fieldName = LaDocReflectionUtil.getNoException(() -> {
+        String fieldName = LaDocReflectionUtil.getNoException(() -> {
             return ((SimpleJsonManager) jsonManager).getJsonMappingOption().flatMap(jsonMappingOption -> {
                 return jsonMappingOption.getFieldNaming().map(naming -> {
                     if (naming == JsonFieldNaming.IDENTITY) {
@@ -429,9 +430,9 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
                         return field.getName();
                     }
                 });
-            });
+            }).orElse(null); // getNoException() cannot handle optional
         });
-        return fieldName.orElseGet(() -> field.getName());
+        return fieldName != null ? fieldName : field.getName();
     }
 
     protected String buildEnumValuesExp(Class<?> typeClass) {
