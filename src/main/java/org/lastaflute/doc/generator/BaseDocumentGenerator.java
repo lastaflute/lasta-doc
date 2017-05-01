@@ -28,6 +28,7 @@ import org.dbflute.util.DfReflectionUtil;
 
 /**
  * @author p1us2er0
+ * @author jflute
  * @since 0.6.9 (2075/03/05 Sunday)
  */
 public class BaseDocumentGenerator {
@@ -91,7 +92,6 @@ public class BaseDocumentGenerator {
         if (type instanceof Class<?>) {
             return ((Class<?>) type).getSimpleName();
         }
-        // TODO adjust
         return adjustSimpleTypeName(adjustTypeName(type));
     }
 
