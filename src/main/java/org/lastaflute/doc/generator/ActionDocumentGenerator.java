@@ -44,12 +44,17 @@ import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.dbflute.util.DfReflectionUtil;
 import org.dbflute.util.DfStringUtil;
+import org.lastaflute.core.json.JsonManager;
+import org.lastaflute.core.json.JsonMappingOption.JsonFieldNaming;
+import org.lastaflute.core.json.SimpleJsonManager;
+import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.di.core.ComponentDef;
 import org.lastaflute.di.core.LaContainer;
 import org.lastaflute.di.core.factory.SingletonLaContainerFactory;
 import org.lastaflute.doc.meta.ActionDocMeta;
 import org.lastaflute.doc.meta.TypeDocMeta;
 import org.lastaflute.doc.reflector.SourceParserReflector;
+import org.lastaflute.doc.util.LaDocReflectionUtil;
 import org.lastaflute.web.Execute;
 import org.lastaflute.web.UrlChain;
 import org.lastaflute.web.path.ActionPathResolver;
@@ -58,6 +63,8 @@ import org.lastaflute.web.ruts.config.ActionExecute;
 import org.lastaflute.web.ruts.config.ActionFormMeta;
 import org.lastaflute.web.ruts.config.ModuleConfig;
 import org.lastaflute.web.util.LaModuleConfigUtil;
+
+import com.google.gson.FieldNamingPolicy;
 
 // package of this class should be under lastaflute but no fix for compatible
 /**
@@ -141,7 +148,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
 
         srcDirList.forEach(srcDir -> {
             if (Paths.get(srcDir).toFile().exists()) {
-                try (Stream< Path>stream = Files.find(Paths.get(srcDir), Integer.MAX_VALUE, (path, attr) -> {
+                try (Stream<Path> stream = Files.find(Paths.get(srcDir), Integer.MAX_VALUE, (path, attr) -> {
                     return path.toString().endsWith("Action.java");
                 })) {
                     stream.forEach(path -> {
@@ -256,7 +263,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     }
 
     protected ActionPathResolver getActionPathResolver() {
-        return SingletonLaContainerFactory.getContainer().getComponent(ActionPathResolver.class);
+        return ContainerUtil.getComponent(ActionPathResolver.class);
     }
 
     // ===================================================================================
@@ -341,7 +348,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         }
 
         final Set<Field> fieldSet = DfCollectionUtil.newLinkedHashSet();
-        for (Class< ?>targetClazz = clazz; targetClazz != Object.class; targetClazz = targetClazz.getSuperclass()) {
+        for (Class<?> targetClazz = clazz; targetClazz != Object.class; targetClazz = targetClazz.getSuperclass()) {
             if (targetClazz == null) { // e.g. interface: MultipartFormFile
                 break;
             }
@@ -398,7 +405,34 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         sourceParserReflector.ifPresent(sourceParserReflector -> {
             sourceParserReflector.reflect(meta, clazz);
         });
+        // necessary to set it after parsing javadoc
+        meta.setName(adjustFieldName(clazz, field));
         return meta;
+    }
+
+    protected String adjustFieldName(Class<?> clazz, Field field) {
+        // TODO p1us2er0 judge accurately (2017/04/20)
+        if (clazz.getSimpleName().endsWith("Form")) {
+            return field.getName();
+        }
+        JsonManager jsonManager = ContainerUtil.getComponent(JsonManager.class);
+        if (!(jsonManager instanceof SimpleJsonManager)) {
+            return field.getName();
+        }
+        String fieldName = LaDocReflectionUtil.getNoException(() -> {
+            return ((SimpleJsonManager) jsonManager).getJsonMappingOption().flatMap(jsonMappingOption -> {
+                return jsonMappingOption.getFieldNaming().map(naming -> {
+                    if (naming == JsonFieldNaming.IDENTITY) {
+                        return FieldNamingPolicy.IDENTITY.translateName(field);
+                    } else if (naming == JsonFieldNaming.CAMEL_TO_LOWER_SNAKE) {
+                        return FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES.translateName(field);
+                    } else {
+                        return field.getName();
+                    }
+                });
+            }).orElse(null); // getNoException() cannot handle optional
+        });
+        return fieldName != null ? fieldName : field.getName();
     }
 
     protected String buildEnumValuesExp(Class<?> typeClass) {

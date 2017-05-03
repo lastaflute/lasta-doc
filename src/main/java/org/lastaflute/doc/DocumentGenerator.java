@@ -162,7 +162,7 @@ public class DocumentGenerator {
             builder.serializeNulls().setPrettyPrinting();
         }, op -> {});
         // not to depend on application settings
-        //return SingletonLaContainerFactory.getContainer().getComponent(JsonManager.class);
+        //return ContainerUtil.getComponent(JsonManager.class);
     }
 
     protected String getLastaDocDir() {
