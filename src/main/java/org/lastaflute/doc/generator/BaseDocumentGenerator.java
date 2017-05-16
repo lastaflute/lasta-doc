@@ -24,7 +24,10 @@ import java.util.Objects;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+import org.dbflute.jdbc.Classification;
 import org.dbflute.util.DfReflectionUtil;
+import org.dbflute.util.DfTypeUtil;
+import org.dbflute.util.Srl;
 
 /**
  * @author p1us2er0
@@ -90,9 +93,17 @@ public class BaseDocumentGenerator {
 
     protected String adjustSimpleTypeName(Type type) {
         if (type instanceof Class<?>) {
-            return ((Class<?>) type).getSimpleName();
+            final Class<?> clazz = ((Class<?>) type);
+            final String typeName;
+            if (Classification.class.isAssignableFrom(clazz)) {
+                typeName = Srl.replace(DfTypeUtil.toClassTitle(clazz), "CDef$", "CDef."); // e.g. CDef.MemberStatus
+            } else {
+                typeName = clazz.getSimpleName();
+            }
+            return typeName;
+        } else {
+            return adjustSimpleTypeName(adjustTypeName(type));
         }
-        return adjustSimpleTypeName(adjustTypeName(type));
     }
 
     protected String adjustSimpleTypeName(String typeName) {
