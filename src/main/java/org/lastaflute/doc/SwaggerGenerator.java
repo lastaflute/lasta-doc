@@ -18,9 +18,11 @@ package org.lastaflute.doc;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -55,6 +57,17 @@ public class SwaggerGenerator {
 
     public Map<String, Object> generateSwaggerMap() {
         Map<String, Object> swaggerMap = createSwaggerMap();
+        return swaggerMap;
+    }
+
+    public Map<String, Object> generateSwaggerMap(Consumer<SwaggerOption> op) {
+        SwaggerOption swaggerOption = new SwaggerOption();
+        op.accept(swaggerOption);
+        Map<String, Object> swaggerMap = createSwaggerMap();
+        List<Map<String, Object>> headerParameterList = swaggerOption.getHeaderParameterList();
+        adaptHeaderParameters(swaggerMap, headerParameterList);
+        List<Map<String, Object>> securityDefinitionList = swaggerOption.getSecurityDefinitionList();
+        adaptSecurityDefinitions(swaggerMap, securityDefinitionList);
         return swaggerMap;
     }
 
@@ -283,6 +296,98 @@ public class SwaggerGenerator {
         return valueList;
     }
 
+    // ===================================================================================
+    //                                                                              Option
+    //                                                                              ======
+    /**
+     * @author p1us2er0
+     */
+    public static class SwaggerOption {
+
+        private List<Map<String, Object>> headerParameterList = new ArrayList<>();
+        private List<Map<String, Object>> securityDefinitionList = new ArrayList<>();
+
+        public void addHeaderParameter(Map<String, Object> headerParameter) {
+            headerParameterList.add(headerParameter);
+        }
+
+        public List<Map<String, Object>> getHeaderParameterList() {
+            return headerParameterList;
+        }
+
+        public void addSecurityDefinition(Map<String, Object> securityDefinition) {
+            securityDefinitionList.add(securityDefinition);
+        }
+
+        public List<Map<String, Object>> getSecurityDefinitionList() {
+            return securityDefinitionList;
+        }
+
+        // TODO jflute createHeaderParameter、createSecurityDefinitionの定義位置迷っています。 by p1us2er0 (2017/05/20)
+        public Map<String, Object> createHeaderParameter(String name, String value) {
+            final Map<String, Object> headerParameter = DfCollectionUtil.newLinkedHashMap();
+            headerParameter.put("in", "header");
+            headerParameter.put("type", "string");
+            headerParameter.put("required", true);
+            headerParameter.put("name", name);
+            headerParameter.put("default", value);
+            return headerParameter;
+        }
+
+        public Map<String, Object> createSecurityDefinition(String name) {
+            final Map<String, Object> securityDefinition = DfCollectionUtil.newLinkedHashMap();
+            securityDefinition.put("in", "header");
+            securityDefinition.put("type", "apiKey");
+            securityDefinition.put("name", name);
+            return securityDefinition;
+        }
+    }
+
+    protected void adaptHeaderParameters(Map<String, Object> swaggerMap, List<Map<String, Object>> headerParameterList) {
+        if (headerParameterList.isEmpty()) {
+            return;
+        }
+        final Object paths = swaggerMap.get("paths");
+        if (!(paths instanceof Map<?, ?>)) {
+            return;
+        }
+        @SuppressWarnings("unchecked")
+        final Map<Object, Object> pathMap = (Map<Object, Object>) paths;
+        pathMap.forEach((path, pathData) -> {
+            if (!(pathData instanceof Map<?, ?>)) {
+                return;
+            }
+            @SuppressWarnings("unchecked")
+            final Map<Object, Object> pathDataMap = (Map<Object, Object>) pathData;
+
+            headerParameterList.forEach(headerParameter -> {
+                if (!pathDataMap.containsKey("parameters")) {
+                    pathDataMap.put("parameters", DfCollectionUtil.newArrayList());
+                }
+                final Object parameters = pathDataMap.get("parameters");
+                if (parameters instanceof List<?>) {
+                    @SuppressWarnings("all")
+                    final List<Object> parameterList = (List<Object>) parameters;
+                    parameterList.add(headerParameter);
+                }
+            });
+        });
+    }
+
+    protected void adaptSecurityDefinitions(Map<String, Object> swaggerMap, List<Map<String, Object>> securityDefinitionList) {
+        final Map<Object, Object> securityDefinitions = DfCollectionUtil.newLinkedHashMap();
+        final Map<Object, Object> security = DfCollectionUtil.newLinkedHashMap();
+        swaggerMap.put("securityDefinitions", securityDefinitions);
+        swaggerMap.put("security", security);
+        securityDefinitionList.forEach(securityDefinition -> {
+            securityDefinitions.put(securityDefinition.get("name"), securityDefinition);
+            security.put(securityDefinition.get("name"), Arrays.asList());
+        });
+    }
+
+    // ===================================================================================
+    //                                                                  Document Generator
+    //                                                                  ==================
     protected DocumentGenerator createDocumentGenerator() {
         return new DocumentGenerator();
     }
@@ -293,10 +398,6 @@ public class SwaggerGenerator {
 
     protected OptionalThing<String> prepareApplicationVersion() {
         return OptionalThing.empty();
-    }
-
-    protected AccessibleConfig getAccessibleConfig() {
-        return ContainerUtil.getComponent(AccessibleConfig.class);
     }
 
     protected DateTimeFormatter getLocalDateFormatter() {
@@ -334,6 +435,10 @@ public class SwaggerGenerator {
             }
         }
         return null;
+    }
+
+    protected AccessibleConfig getAccessibleConfig() {
+        return ContainerUtil.getComponent(AccessibleConfig.class);
     }
 
     protected TimeManager getTimeManager() {
