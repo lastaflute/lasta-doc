@@ -18,6 +18,7 @@ package org.lastaflute.doc;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import org.dbflute.util.DfCollectionUtil;
 
@@ -27,41 +28,90 @@ import org.dbflute.util.DfCollectionUtil;
  */
 public class SwaggerOption {
 
+    // ===================================================================================
+    //                                                                           Attribute
+    //                                                                           =========
     protected final List<Map<String, Object>> headerParameterList = new ArrayList<>();
     protected final List<Map<String, Object>> securityDefinitionList = new ArrayList<>();
 
-    public void addHeaderParameter(Map<String, Object> headerParameter) {
-        headerParameterList.add(headerParameter);
+    // ===================================================================================
+    //                                                                    Header Parameter
+    //                                                                    ================
+    public void addHeaderParameter(String name, String value) {
+        headerParameterList.add(createHeaderParameterMap(name, value));
     }
 
+    public void addHeaderParameter(String name, String value, Consumer<SwaggerHeaderParameterResource> resourceLambda) {
+        final Map<String, Object> parameterMap = createHeaderParameterMap(name, value);
+        resourceLambda.accept(new SwaggerHeaderParameterResource(parameterMap));
+        headerParameterList.add(parameterMap);
+    }
+
+    protected Map<String, Object> createHeaderParameterMap(String name, String value) {
+        final Map<String, Object> parameterMap = DfCollectionUtil.newLinkedHashMap();
+        parameterMap.put("in", "header");
+        parameterMap.put("type", "string");
+        parameterMap.put("required", true);
+        parameterMap.put("name", name);
+        parameterMap.put("default", value);
+        return parameterMap;
+    }
+
+    public static class SwaggerHeaderParameterResource {
+
+        protected final Map<String, Object> headerParameterMap;
+
+        public SwaggerHeaderParameterResource(Map<String, Object> headerParameterMap) {
+            this.headerParameterMap = headerParameterMap;
+        }
+
+        public void addParameter(String key, Object value) {
+            headerParameterMap.put(key, value);
+        }
+    }
+
+    // ===================================================================================
+    //                                                                 Security Definition
+    //                                                                 ===================
+    public void addSecurityDefinition(String name) {
+        securityDefinitionList.add(createSecurityDefinitionMap(name));
+    }
+
+    public void addSecurityDefinition(String name, Consumer<SwaggerSecurityDefinitionResource> resourceLambda) {
+        final Map<String, Object> definitionMap = createSecurityDefinitionMap(name);
+        resourceLambda.accept(new SwaggerSecurityDefinitionResource(definitionMap));
+        securityDefinitionList.add(definitionMap);
+    }
+
+    protected Map<String, Object> createSecurityDefinitionMap(String name) {
+        final Map<String, Object> definitionMap = DfCollectionUtil.newLinkedHashMap();
+        definitionMap.put("in", "header");
+        definitionMap.put("type", "apiKey");
+        definitionMap.put("name", name);
+        return definitionMap;
+    }
+
+    public static class SwaggerSecurityDefinitionResource {
+
+        protected final Map<String, Object> securityDefinitionMap;
+
+        public SwaggerSecurityDefinitionResource(Map<String, Object> securityDefinitionMap) {
+            this.securityDefinitionMap = securityDefinitionMap;
+        }
+
+        public void addParameter(String key, Object value) {
+            securityDefinitionMap.put(key, value);
+        }
+    }
+
+    // ===================================================================================
+    //                                                                            Accessor
+    //                                                                            ========
     public List<Map<String, Object>> getHeaderParameterList() {
         return headerParameterList;
     }
 
-    public void addSecurityDefinition(Map<String, Object> securityDefinition) {
-        securityDefinitionList.add(securityDefinition);
-    }
-
     public List<Map<String, Object>> getSecurityDefinitionList() {
         return securityDefinitionList;
-    }
-
-    // TODO jflute createHeaderParameter、createSecurityDefinitionの定義位置迷っています。 by p1us2er0 (2017/05/20)
-    public Map<String, Object> createHeaderParameter(String name, String value) {
-        final Map<String, Object> headerParameter = DfCollectionUtil.newLinkedHashMap();
-        headerParameter.put("in", "header");
-        headerParameter.put("type", "string");
-        headerParameter.put("required", true);
-        headerParameter.put("name", name);
-        headerParameter.put("default", value);
-        return headerParameter;
-    }
-
-    public Map<String, Object> createSecurityDefinition(String name) {
-        final Map<String, Object> securityDefinition = DfCollectionUtil.newLinkedHashMap();
-        securityDefinition.put("in", "header");
-        securityDefinition.put("type", "apiKey");
-        securityDefinition.put("name", name);
-        return securityDefinition;
     }
 }
