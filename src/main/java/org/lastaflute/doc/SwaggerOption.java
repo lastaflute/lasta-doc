@@ -65,7 +65,16 @@ public class SwaggerOption {
             this.headerParameterMap = headerParameterMap;
         }
 
-        public void addParameter(String key, Object value) {
+        public void registerMeta(String key, Object value) {
+            if (key == null) {
+                throw new IllegalArgumentException("The argument 'key' should not be null.");
+            }
+            if (value == null) {
+                throw new IllegalArgumentException("The argument 'value' should not be null.");
+            }
+            if (key.equalsIgnoreCase("name") || key.equalsIgnoreCase("default")) {
+                throw new IllegalArgumentException("Cannot add '" + key + "' key here: " + key + ", " + value);
+            }
             headerParameterMap.put(key, value);
         }
     }
@@ -99,7 +108,16 @@ public class SwaggerOption {
             this.securityDefinitionMap = securityDefinitionMap;
         }
 
-        public void addParameter(String key, Object value) {
+        public void registerMeta(String key, Object value) {
+            if (key == null) {
+                throw new IllegalArgumentException("The argument 'key' should not be null.");
+            }
+            if (value == null) {
+                throw new IllegalArgumentException("The argument 'value' should not be null.");
+            }
+            if (key.equalsIgnoreCase("name")) {
+                throw new IllegalArgumentException("Cannot add '" + key + "' key here: " + key + ", " + value);
+            }
             securityDefinitionMap.put(key, value);
         }
     }
