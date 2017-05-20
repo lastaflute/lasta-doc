@@ -65,7 +65,7 @@ public class SwaggerOption {
             this.headerParameterMap = headerParameterMap;
         }
 
-        public void registerMeta(String key, Object value) {
+        public void registerAttribute(String key, Object value) {
             if (key == null) {
                 throw new IllegalArgumentException("The argument 'key' should not be null.");
             }
@@ -108,7 +108,7 @@ public class SwaggerOption {
             this.securityDefinitionMap = securityDefinitionMap;
         }
 
-        public void registerMeta(String key, Object value) {
+        public void registerAttribute(String key, Object value) {
             if (key == null) {
                 throw new IllegalArgumentException("The argument 'key' should not be null.");
             }
