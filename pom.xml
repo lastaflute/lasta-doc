@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.lastaflute.doc</groupId>
 	<artifactId>lasta-doc</artifactId>
-	<version>0.2.3</version>
+	<version>0.2.4</version>
 	<packaging>jar</packaging>
 
 	<name>lasta-doc</name>
@@ -13,11 +13,11 @@
 	<inceptionYear>2015</inceptionYear>
 
 	<properties>
-		<lastaflute.version>0.9.6</lastaflute.version>
-		<lasta.job.version>0.4.5</lasta.job.version>
+		<lastaflute.version>0.9.7</lastaflute.version>
+		<lasta.job.version>0.4.7</lasta.job.version>
 		<servlet.version>3.1.0</servlet.version>
-		<javaparser.version>3.1.3</javaparser.version>
-		<utflute.version>0.7.3</utflute.version>
+		<javaparser.version>3.2.3</javaparser.version>
+		<utflute.version>0.7.5</utflute.version>
 	</properties>
 
 	<licenses>

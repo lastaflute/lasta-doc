@@ -21,6 +21,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -50,14 +51,32 @@ import org.lastaflute.web.validation.Required;
 
 /**
  * @author p1us2er0
+ * @author jflute
  */
 public class SwaggerGenerator {
 
+    // ===================================================================================
+    //                                                                            Generate
+    //                                                                            ========
     public Map<String, Object> generateSwaggerMap() {
         Map<String, Object> swaggerMap = createSwaggerMap();
         return swaggerMap;
     }
 
+    public Map<String, Object> generateSwaggerMap(Consumer<SwaggerOption> op) {
+        SwaggerOption swaggerOption = new SwaggerOption();
+        op.accept(swaggerOption);
+        Map<String, Object> swaggerMap = createSwaggerMap();
+        List<Map<String, Object>> headerParameterList = swaggerOption.getHeaderParameterList();
+        adaptHeaderParameters(swaggerMap, headerParameterList);
+        List<Map<String, Object>> securityDefinitionList = swaggerOption.getSecurityDefinitionList();
+        adaptSecurityDefinitions(swaggerMap, securityDefinitionList);
+        return swaggerMap;
+    }
+
+    // ===================================================================================
+    //                                                                         Swagger Map
+    //                                                                         ===========
     protected Map<String, Object> createSwaggerMap() {
         Map<String, Object> swaggerMap = DfCollectionUtil.newLinkedHashMap();
         swaggerMap.put("swagger", "2.0");
@@ -95,6 +114,9 @@ public class SwaggerGenerator {
         return swaggerInfoMap;
     }
 
+    // ===================================================================================
+    //                                                                    Swagger Path Map
+    //                                                                    ================
     protected void createSwaggerPathMap(List<Map<String, Object>> swaggerTagList, Map<String, Map<String, Object>> swaggerPathMap,
             Map<String, Map<String, Object>> swaggerDefinitionsMap) {
         createActionDocumentGenerator().generateActionDocMetaList().stream().forEach(actiondocMeta -> {
@@ -171,6 +193,9 @@ public class SwaggerGenerator {
         });
     }
 
+    // ===================================================================================
+    //                                                               Swagger Parameter Map
+    //                                                               =====================
     protected Map<String, Object> createSwaggerParameterMap(TypeDocMeta typeDocMeta, Map<String, Map<String, Object>> definitionsMap) {
         Map<Class<?>, Tuple3<String, String, Function<String, Object>>> typeMap = createTypeMap();
 
@@ -179,7 +204,7 @@ public class SwaggerGenerator {
         if (DfStringUtil.is_NotNull_and_NotEmpty(typeDocMeta.getDescription())) {
             swaggerParameterMap.put("description", typeDocMeta.getDescription());
         }
-        // TODO p1us2er0 need to support @NotNull、@NotEmpty (2017/01/10)
+        // TODO p1us2er0 pri.B need to support @NotNull、@NotEmpty (2017/01/10)
         swaggerParameterMap.put("required",
                 typeDocMeta.getAnnotationTypeList().stream().anyMatch(annotationType -> annotationType instanceof Required));
         if (typeMap.containsKey(typeDocMeta.getType())) {
@@ -256,10 +281,10 @@ public class SwaggerGenerator {
         typeMap.put(byte[].class, Tuple3.tuple3("string", "byte", value -> value));
         typeMap.put(Boolean.class, Tuple3.tuple3("boolean", null, value -> DfTypeUtil.toBoolean(value)));
         TimeManager timeManager = getTimeManager();
-        typeMap.put(LocalDate.class,
-                Tuple3.tuple3("string", "date", value -> value == null ? getLocalDateFormatter().format(timeManager.currentDate()) : value));
-        typeMap.put(LocalDateTime.class,
-                Tuple3.tuple3("string", "date-time", value -> value == null ? getLocalDateTimeFormatter().format(timeManager.currentDateTime()) : value));
+        typeMap.put(LocalDate.class, Tuple3.tuple3("string", "date",
+                value -> value == null ? getLocalDateFormatter().format(timeManager.currentDate()) : value));
+        typeMap.put(LocalDateTime.class, Tuple3.tuple3("string", "date-time",
+                value -> value == null ? getLocalDateTimeFormatter().format(timeManager.currentDateTime()) : value));
         typeMap.put(int.class, Tuple3.tuple3("integer", "int32", value -> DfTypeUtil.toInteger(value)));
         typeMap.put(long.class, Tuple3.tuple3("integer", "int64", value -> DfTypeUtil.toLong(value)));
         typeMap.put(float.class, Tuple3.tuple3("integer", "float", value -> DfTypeUtil.toFloat(value)));
@@ -283,6 +308,51 @@ public class SwaggerGenerator {
         return valueList;
     }
 
+    protected void adaptHeaderParameters(Map<String, Object> swaggerMap, List<Map<String, Object>> headerParameterList) {
+        if (headerParameterList.isEmpty()) {
+            return;
+        }
+        final Object paths = swaggerMap.get("paths");
+        if (!(paths instanceof Map<?, ?>)) {
+            return;
+        }
+        @SuppressWarnings("unchecked")
+        final Map<Object, Object> pathMap = (Map<Object, Object>) paths;
+        pathMap.forEach((path, pathData) -> {
+            if (!(pathData instanceof Map<?, ?>)) {
+                return;
+            }
+            @SuppressWarnings("unchecked")
+            final Map<Object, Object> pathDataMap = (Map<Object, Object>) pathData;
+
+            headerParameterList.forEach(headerParameter -> {
+                if (!pathDataMap.containsKey("parameters")) {
+                    pathDataMap.put("parameters", DfCollectionUtil.newArrayList());
+                }
+                final Object parameters = pathDataMap.get("parameters");
+                if (parameters instanceof List<?>) {
+                    @SuppressWarnings("all")
+                    final List<Object> parameterList = (List<Object>) parameters;
+                    parameterList.add(headerParameter);
+                }
+            });
+        });
+    }
+
+    protected void adaptSecurityDefinitions(Map<String, Object> swaggerMap, List<Map<String, Object>> securityDefinitionList) {
+        final Map<Object, Object> securityDefinitions = DfCollectionUtil.newLinkedHashMap();
+        final Map<Object, Object> security = DfCollectionUtil.newLinkedHashMap();
+        swaggerMap.put("securityDefinitions", securityDefinitions);
+        swaggerMap.put("security", security);
+        securityDefinitionList.forEach(securityDefinition -> {
+            securityDefinitions.put(securityDefinition.get("name"), securityDefinition);
+            security.put(securityDefinition.get("name"), Arrays.asList());
+        });
+    }
+
+    // ===================================================================================
+    //                                                                  Document Generator
+    //                                                                  ==================
     protected DocumentGenerator createDocumentGenerator() {
         return new DocumentGenerator();
     }
@@ -295,16 +365,13 @@ public class SwaggerGenerator {
         return OptionalThing.empty();
     }
 
-    protected AccessibleConfig getAccessibleConfig() {
-        return ContainerUtil.getComponent(AccessibleConfig.class);
-    }
-
     protected DateTimeFormatter getLocalDateFormatter() {
         OptionalThing<DateTimeFormatter> localDateFormatter;
         JsonManager jsonManager = getJsonManager();
         if (jsonManager instanceof SimpleJsonManager) {
             localDateFormatter = LaDocReflectionUtil.getNoException(() -> {
-                return ((SimpleJsonManager) jsonManager).getJsonMappingOption().flatMap(jsonMappingOption -> jsonMappingOption.getLocalDateFormatter());
+                return ((SimpleJsonManager) jsonManager).getJsonMappingOption()
+                        .flatMap(jsonMappingOption -> jsonMappingOption.getLocalDateFormatter());
             });
         } else {
             localDateFormatter = OptionalThing.empty();
@@ -317,7 +384,8 @@ public class SwaggerGenerator {
         JsonManager jsonManager = getJsonManager();
         if (jsonManager instanceof SimpleJsonManager) {
             localDateTimeFormatter = LaDocReflectionUtil.getNoException(() -> {
-                return ((SimpleJsonManager) jsonManager).getJsonMappingOption().flatMap(jsonMappingOption -> jsonMappingOption.getLocalDateTimeFormatter());
+                return ((SimpleJsonManager) jsonManager).getJsonMappingOption()
+                        .flatMap(jsonMappingOption -> jsonMappingOption.getLocalDateTimeFormatter());
             });
         } else {
             localDateTimeFormatter = OptionalThing.empty();
@@ -334,6 +402,13 @@ public class SwaggerGenerator {
             }
         }
         return null;
+    }
+
+    // ===================================================================================
+    //                                                                           Component
+    //                                                                           =========
+    protected AccessibleConfig getAccessibleConfig() {
+        return ContainerUtil.getComponent(AccessibleConfig.class);
     }
 
     protected TimeManager getTimeManager() {

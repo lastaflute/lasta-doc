@@ -447,7 +447,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
                 return ((Classification) valueMapper).alias();
             })).toString(); // e.g. {FML = Formalized, PRV = Provisinal, ...}
         } else {
-            Enum<?>[] constants = (Enum<?>[]) typeClass.getEnumConstants();
+            final Enum<?>[] constants = (Enum<?>[]) typeClass.getEnumConstants();
             valuesExp = Arrays.stream(constants).collect(Collectors.toList()).toString(); // e.g. [SEA, LAND, PIARI]
         }
         return valuesExp;
