@@ -222,6 +222,8 @@ public class SwaggerGenerator {
             } else {
                 swaggerParameterMap.put("items", DfCollectionUtil.newLinkedHashMap("type", "string"));
             }
+        } else if (Map.class.isAssignableFrom(typeDocMeta.getType())) {
+            swaggerParameterMap.put("type", "object");
         } else if (!typeDocMeta.getNestTypeDocMetaList().isEmpty()) {
             String definition = putDefinition(definitionsMap, typeDocMeta);
             swaggerParameterMap.put("schema", DfCollectionUtil.newLinkedHashMap("$ref", definition));
