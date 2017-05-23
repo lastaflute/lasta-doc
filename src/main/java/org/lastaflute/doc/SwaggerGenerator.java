@@ -83,7 +83,7 @@ public class SwaggerGenerator {
         Map<String, String> swaggerInfoMap = createSwaggerInfoMap();
         swaggerMap.put("info", swaggerInfoMap);
         swaggerMap.put("host", LaRequestUtil.getRequest().getHeader("host"));
-        swaggerMap.put("schemes", Arrays.asList(LaRequestUtil.getRequest().getProtocol()));
+        swaggerMap.put("schemes", Arrays.asList(LaRequestUtil.getRequest().getScheme()));
 
         StringBuilder basePath = new StringBuilder();
         basePath.append(LaServletContextUtil.getServletContext().getContextPath() + "/");
