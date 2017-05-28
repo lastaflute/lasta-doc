@@ -25,6 +25,7 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 
+import org.dbflute.infra.dfprop.DfPropFile;
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.lastaflute.core.json.engine.GsonJsonEngine;
@@ -32,6 +33,7 @@ import org.lastaflute.doc.generator.ActionDocumentGenerator;
 import org.lastaflute.doc.generator.DocumentGeneratorFactory;
 import org.lastaflute.doc.generator.JobDocumentGenerator;
 import org.lastaflute.doc.meta.ActionDocMeta;
+import org.lastaflute.doc.policycheck.JsonPolicyChecker;
 import org.lastaflute.doc.reflector.SourceParserReflector;
 import org.lastaflute.doc.reflector.SourceParserReflectorFactory;
 
@@ -39,6 +41,7 @@ import org.lastaflute.doc.reflector.SourceParserReflectorFactory;
 /**
  * @author p1us2er0
  * @author jflute
+ * @author yuto.eguma
  * @since 0.5.0-sp9 (2015/09/18 Friday)
  */
 public class DocumentGenerator {
@@ -48,6 +51,8 @@ public class DocumentGenerator {
     //                                                                          ==========
     /** source directory. */
     protected static final String SRC_DIR = "src/main/java/";
+    /** source policy map */
+    protected static final String POLICY_MAP_PATH = "./src/main/resources/jsonPolicyMap.dfprop";
 
     /** depth. */
     protected static final int DEPTH = 4;
@@ -134,6 +139,16 @@ public class DocumentGenerator {
         } catch (IOException e) {
             throw new IllegalStateException("Failed to write the json to the file: " + path, e);
         }
+
+        Map<String, Object> policyMap = loadJsonPolicyMap();
+        // TODO yuto i don't want to use generator here because it looks heavy... (2017/05/01)
+        JsonPolicyChecker checker = new JsonPolicyChecker(createActionDocumentGenerator().generateActionDocMetaList(), policyMap);
+        checker.checkPolicyIfNeeds();
+    }
+
+    protected Map<String, Object> loadJsonPolicyMap() {
+        DfPropFile propFile = new DfPropFile();
+        return propFile.readMap(POLICY_MAP_PATH, null);
     }
 
     protected Map<String, Object> generateLastaDocDetailMap() {

@@ -1,0 +1,15 @@
+map:{
+    ; actionExceptList = list:{}
+    ; actionTargetList = list:{}
+    ; fieldExceptMap = map:{}
+    ; methodMap = map:{
+        ; themeList = list:{}
+        ; statementList = list:{}
+    }
+    ; fieldMap = map:{
+        ; themeList = list:{}
+        ; statementList = list:{
+            ; if fieldName is suffix:Str then bad
+        }
+    }
+}
