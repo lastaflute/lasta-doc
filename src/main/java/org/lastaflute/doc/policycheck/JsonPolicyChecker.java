@@ -15,13 +15,13 @@
  */
 package org.lastaflute.doc.policycheck;
 
+import java.util.List;
+import java.util.Map;
+
 import org.dbflute.util.Srl;
 import org.lastaflute.doc.meta.ActionDocMeta;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.List;
-import java.util.Map;
 
 /**
  * @author yuto.eguma (2017/05/02 itoshima)
@@ -89,12 +89,12 @@ public class JsonPolicyChecker {
     protected void doCheck(ActionDocMeta actionDocMeta, JsonPolicyResult result) {
         _policyMap.forEach((key, value) -> {
             if (key.equals("methodMap")) {
-                @SuppressWarnings("unchecked")
-                final Map<String, Object> methodMap = (Map<String, Object>) value;
+                // @SuppressWarnings("unchecked")
+                // final Map<String, Object> methodMap = (Map<String, Object>) value;
                 // TODO yuto check method policy (2017/05/14)
             } else if (key.equals("fieldMap")) {
-                @SuppressWarnings("unchecked")
-                final Map<String, Object> fieldMap = (Map<String, Object>) value;
+                // @SuppressWarnings("unchecked")
+                // final Map<String, Object> fieldMap = (Map<String, Object>) value;
                 // TODO yuto check field policy (2017/05/14)
             } else {
                 if (!Srl.equalsPlain(key, "actionExceptList", "actionTargetList", "methodExceptMap", "fieldExceptMap")) {
