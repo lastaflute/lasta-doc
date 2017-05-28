@@ -197,7 +197,7 @@ public class SwaggerGenerator {
     //                                                               Swagger Parameter Map
     //                                                               =====================
     protected Map<String, Object> createSwaggerParameterMap(TypeDocMeta typeDocMeta, Map<String, Map<String, Object>> definitionsMap) {
-        Map<Class<?>, Tuple3<String, String, Function<String, Object>>> typeMap = createTypeMap();
+        Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> typeMap = createTypeMap();
 
         Map<String, Object> swaggerParameterMap = DfCollectionUtil.newLinkedHashMap();
         swaggerParameterMap.put("name", typeDocMeta.getName());
@@ -208,7 +208,7 @@ public class SwaggerGenerator {
         swaggerParameterMap.put("required",
                 typeDocMeta.getAnnotationTypeList().stream().anyMatch(annotationType -> annotationType instanceof Required));
         if (typeMap.containsKey(typeDocMeta.getType())) {
-            Tuple3<String, String, Function<String, Object>> swaggerType = typeMap.get(typeDocMeta.getType());
+            Tuple3<String, String, Function<Object, Object>> swaggerType = typeMap.get(typeDocMeta.getType());
             swaggerParameterMap.put("type", swaggerType.getValue1());
             String format = swaggerType.getValue2();
             if (DfStringUtil.is_NotNull_and_NotEmpty(format)) {
@@ -253,13 +253,9 @@ public class SwaggerGenerator {
             // pattern, maxItems, minItems
         });
 
-        if (typeMap.containsKey(typeDocMeta.getType())) {
-            Tuple3<String, String, Function<String, Object>> swaggerType = typeMap.get(typeDocMeta.getType());
-            Object defaultValue = swaggerType.getValue3().apply(deriveDefaultValue(typeDocMeta));
-            if (defaultValue != null) {
-                swaggerParameterMap.put("default", defaultValue);
-            }
-        }
+        deriveDefaultValue(typeDocMeta).ifPresent(defaultValue -> {
+            swaggerParameterMap.put("default", defaultValue);
+        });
         return swaggerParameterMap;
     }
 
@@ -273,8 +269,8 @@ public class SwaggerGenerator {
         return "#/definitions/" + typeDocMeta.getTypeName();
     }
 
-    protected Map<Class<?>, Tuple3<String, String, Function<String, Object>>> createTypeMap() {
-        Map<Class<?>, Tuple3<String, String, Function<String, Object>>> typeMap = DfCollectionUtil.newLinkedHashMap();
+    protected Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> createTypeMap() {
+        Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> typeMap = DfCollectionUtil.newLinkedHashMap();
         typeMap.put(Integer.class, Tuple3.tuple3("integer", "int32", value -> DfTypeUtil.toInteger(value)));
         typeMap.put(Long.class, Tuple3.tuple3("integer", "int64", value -> DfTypeUtil.toLong(value)));
         typeMap.put(Float.class, Tuple3.tuple3("integer", "float", value -> DfTypeUtil.toFloat(value)));
@@ -395,10 +391,46 @@ public class SwaggerGenerator {
         return localDateTimeFormatter.orElseGet(() -> DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS"));
     }
 
-    protected String deriveDefaultValue(TypeDocMeta typeDocMeta) {
-        if (DfStringUtil.is_NotNull_and_NotEmpty(typeDocMeta.getComment())) {
+    protected OptionalThing<Object> deriveDefaultValue(TypeDocMeta typeDocMeta) {
+        Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> typeMap = createTypeMap();
+        if (typeMap.containsKey(typeDocMeta.getType())) {
+            Tuple3<String, String, Function<Object, Object>> swaggerType = typeMap.get(typeDocMeta.getType());
+            Object defaultValue = swaggerType.getValue3().apply(deriveDefaultValueByComment(typeDocMeta.getComment()));
+            if (defaultValue != null) {
+                return OptionalThing.of(defaultValue);
+            }
+        } else if (Iterable.class.isAssignableFrom(typeDocMeta.getType()) && typeDocMeta.getNestTypeDocMetaList().isEmpty()) {
+            Object defaultValue = deriveDefaultValueByComment(typeDocMeta.getComment());
+            if (!(defaultValue instanceof List)) {
+                return OptionalThing.empty();
+            }
+            @SuppressWarnings("unchecked")
+            List<Object> defaultValueList = (List<Object>) defaultValue;
+            // TODO p1us2er0 derive genericClass  (2017/05/29)
+            Class<?> genericClass = String.class;
+            Tuple3<String, String, Function<Object, Object>> swaggerType = typeMap.get(genericClass);
+            return OptionalThing
+                    .of(defaultValueList.stream().map(value -> swaggerType.getValue3().apply(value)).collect(Collectors.toList()));
+        }
+        return OptionalThing.empty();
+    }
+
+    protected Object deriveDefaultValueByComment(String comment) {
+        if (DfStringUtil.is_NotNull_and_NotEmpty(comment)) {
+            if (comment.contains("e.g. \"")) {
+                return DfStringUtil.substringFirstFront(DfStringUtil.substringFirstRear(comment, "e.g. \""), "\"");
+            }
+            if (comment.contains("e.g. [")) {
+                String defaultValue = DfStringUtil.substringFirstFront(DfStringUtil.substringFirstRear(comment, "e.g. ["), "]");
+                return Arrays.stream(defaultValue.split(", *")).map(value -> {
+                    if (value.startsWith("\"") && value.endsWith("\"")) {
+                        return value.substring(1, value.length() - 1);
+                    }
+                    return value;
+                }).collect(Collectors.toList());
+            }
             Pattern pattern = Pattern.compile(" e\\.g\\. ([^ ]+)");
-            Matcher matcher = pattern.matcher(typeDocMeta.getComment());
+            Matcher matcher = pattern.matcher(comment);
             if (matcher.find()) {
                 return matcher.group(1);
             }
