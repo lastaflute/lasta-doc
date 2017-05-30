@@ -398,6 +398,10 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
                     String typeName = meta.getTypeName();
                     meta.setTypeName(adjustTypeName(typeName) + "<" + adjustTypeName(genericClass) + ">");
                     meta.setSimpleTypeName(adjustSimpleTypeName(typeName) + "<" + adjustSimpleTypeName(genericClass) + ">");
+                } else {
+                    String typeName = meta.getTypeName();
+                    meta.setTypeName(adjustTypeName(typeName) + "<" + adjustSimpleTypeName(genericTypeName) + ">");
+                    meta.setSimpleTypeName(adjustSimpleTypeName(typeName) + "<" + adjustSimpleTypeName(genericTypeName) + ">");
                 }
             }
         }
