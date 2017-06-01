@@ -37,6 +37,8 @@ public class TypeDocMeta {
     private String typeName;
     /** simple type name. */
     private String simpleTypeName;
+    /** generic type. */
+    private transient Class<?> genericType;
     /** value. */
     private String value;
     /** description. */
@@ -83,6 +85,14 @@ public class TypeDocMeta {
 
     public void setSimpleTypeName(String simpleTypeName) {
         this.simpleTypeName = simpleTypeName;
+    }
+
+    public Class<?> getGenericType() {
+        return genericType;
+    }
+
+    public void setGenericType(Class<?> genericType) {
+        this.genericType = genericType;
     }
 
     public String getValue() {

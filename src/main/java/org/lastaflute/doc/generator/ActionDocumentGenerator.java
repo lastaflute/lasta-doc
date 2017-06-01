@@ -43,6 +43,7 @@ import org.dbflute.jdbc.Classification;
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.dbflute.util.DfReflectionUtil;
+import org.dbflute.util.DfReflectionUtil.ReflectionFailureException;
 import org.dbflute.util.DfStringUtil;
 import org.lastaflute.core.json.JsonManager;
 import org.lastaflute.core.json.JsonMappingOption.JsonFieldNaming;
@@ -392,6 +393,11 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         } else {
             if (field.getGenericType().getTypeName().matches(".*\\<(.+)\\>")) {
                 String genericTypeName = field.getGenericType().getTypeName().replaceAll(".*\\<(.+)\\>", "$1");
+                try {
+                    meta.setGenericType(DfReflectionUtil.forName(genericTypeName));
+                } catch (ReflectionFailureException e) {
+                    // ignore
+                }
                 genericClass = genericParameterTypesMap.get(genericTypeName);
                 if (genericClass != null) {
                     meta.setNestTypeDocMetaList(prepareTypeDocMetaList((Class<?>) genericClass, genericParameterTypesMap, depth - 1));

@@ -220,7 +220,22 @@ public class SwaggerGenerator {
                 String definition = putDefinition(definitionsMap, typeDocMeta);
                 swaggerParameterMap.put("items", DfCollectionUtil.newLinkedHashMap("$ref", definition));
             } else {
-                swaggerParameterMap.put("items", DfCollectionUtil.newLinkedHashMap("type", "string"));
+                Map<String, String> items = DfCollectionUtil.newLinkedHashMap();
+                Class<?> genericType = typeDocMeta.getGenericType();
+                if (genericType != null) {
+                    Tuple3<String, String, Function<Object, Object>> swaggerType = typeMap.get(genericType);
+                    if (swaggerType != null) {
+                        items.put("type", swaggerType.getValue1());
+                        String format = swaggerType.getValue2();
+                        if (DfStringUtil.is_NotNull_and_NotEmpty(format)) {
+                            items.put("format", format);
+                        }
+                    }
+                }
+                if (!items.containsKey("type")) {
+                    items.put("type", "string");
+                }
+                swaggerParameterMap.put("items", items);
             }
         } else if (Map.class.isAssignableFrom(typeDocMeta.getType())) {
             swaggerParameterMap.put("type", "object");
@@ -406,11 +421,16 @@ public class SwaggerGenerator {
             }
             @SuppressWarnings("unchecked")
             List<Object> defaultValueList = (List<Object>) defaultValue;
-            // TODO p1us2er0 derive genericClass  (2017/05/29)
-            Class<?> genericClass = String.class;
-            Tuple3<String, String, Function<Object, Object>> swaggerType = typeMap.get(genericClass);
-            return OptionalThing
-                    .of(defaultValueList.stream().map(value -> swaggerType.getValue3().apply(value)).collect(Collectors.toList()));
+            Class<?> genericType = typeDocMeta.getGenericType();
+            if (genericType == null) {
+                genericType = String.class;
+            }
+            Tuple3<String, String, Function<Object, Object>> swaggerType = typeMap.get(genericType);
+            if (swaggerType != null) {
+                return OptionalThing.of(defaultValueList.stream().map(value -> {
+                    return swaggerType.getValue3().apply(value);
+                }).collect(Collectors.toList()));
+            }
         }
         return OptionalThing.empty();
     }
