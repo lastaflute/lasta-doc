@@ -92,11 +92,19 @@ public class SwaggerGenerator {
     }
 
     public Map<String, Object> generateSwaggerMap() {
+        OptionalThing<Map<String, Object>> swaggerJson = readSwaggerJson();
+        if (swaggerJson.isPresent()) {
+            return swaggerJson.get();
+        }
         Map<String, Object> swaggerMap = createSwaggerMap();
         return swaggerMap;
     }
 
     public Map<String, Object> generateSwaggerMap(Consumer<SwaggerOption> op) {
+        OptionalThing<Map<String, Object>> swaggerJson = readSwaggerJson();
+        if (swaggerJson.isPresent()) {
+            return swaggerJson.get();
+        }
         SwaggerOption swaggerOption = new SwaggerOption();
         op.accept(swaggerOption);
         Map<String, Object> swaggerMap = createSwaggerMap();
@@ -111,11 +119,6 @@ public class SwaggerGenerator {
     //                                                                         Swagger Map
     //                                                                         ===========
     protected Map<String, Object> createSwaggerMap() {
-        OptionalThing<Map<String, Object>> swaggerJson = readSwaggerJson();
-        if (swaggerJson.isPresent()) {
-            return swaggerJson.get();
-        }
-
         Map<String, Object> swaggerMap = DfCollectionUtil.newLinkedHashMap();
         swaggerMap.put("swagger", "2.0");
         Map<String, String> swaggerInfoMap = createSwaggerInfoMap();
