@@ -487,6 +487,16 @@ public class SwaggerGenerator {
                     return swaggerType.getValue3().apply(value);
                 }).collect(Collectors.toList()));
             }
+        } else if (Enum.class.isAssignableFrom(typeDocMeta.getType())) {
+            Object defaultValue = deriveDefaultValueByComment(typeDocMeta.getComment());
+            if (defaultValue != null) {
+                return OptionalThing.of(defaultValue);
+            } else {
+                List<String> enumValueList = buildEnumValueList(typeDocMeta.getType());
+                if (!enumValueList.isEmpty()) {
+                    return OptionalThing.of(enumValueList.get(0));
+                }
+            }
         }
         return OptionalThing.empty();
     }
