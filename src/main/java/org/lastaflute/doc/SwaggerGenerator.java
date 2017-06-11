@@ -58,6 +58,7 @@ import org.lastaflute.di.util.tiger.Tuple3;
 import org.lastaflute.doc.generator.ActionDocumentGenerator;
 import org.lastaflute.doc.meta.TypeDocMeta;
 import org.lastaflute.doc.util.LaDocReflectionUtil;
+import org.lastaflute.doc.web.LaActionSwaggerable;
 import org.lastaflute.web.util.LaRequestUtil;
 import org.lastaflute.web.util.LaServletContextUtil;
 import org.lastaflute.web.validation.Required;
@@ -71,8 +72,8 @@ public class SwaggerGenerator {
     // ===================================================================================
     //                                                                            Generate
     //                                                                            ========
-    public void saveSwaggerMeta(Map<String, Object> swaggerMap) {
-        final String json = createJsonParser().toJson(swaggerMap);
+    public void saveSwaggerMeta(LaActionSwaggerable swaggerable) {
+        final String json = createJsonParser().toJson(swaggerable.json().getJsonResult());
 
         final Path path = Paths.get(getLastaDocDir(), "swagger.json");
         final Path parentPath = path.getParent();
