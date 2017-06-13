@@ -232,8 +232,10 @@ public class SwaggerGenerator {
             swaggerHttpMethodMap.put("parameters", parameterMapList);
             swaggerHttpMethodMap.put("tags",
                     Arrays.asList(DfStringUtil.substringFirstFront(actiondocMeta.getUrl().replaceAll("^/", ""), "/")));
-            swaggerTagList.add(DfCollectionUtil.newLinkedHashMap("name",
-                    DfStringUtil.substringFirstFront(actiondocMeta.getUrl().replaceAll("^/", ""), "/")));
+            String tag = DfStringUtil.substringFirstFront(actiondocMeta.getUrl().replaceAll("^/", ""), "/");
+            if (swaggerTagList.stream().noneMatch(swaggerTag -> swaggerTag.containsValue(tag))) {
+                swaggerTagList.add(DfCollectionUtil.newLinkedHashMap("name", tag));
+            }
 
             Map<String, Object> responseMap = DfCollectionUtil.newLinkedHashMap();
             swaggerHttpMethodMap.put("responses", responseMap);
