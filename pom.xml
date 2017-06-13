@@ -14,7 +14,7 @@
 
 	<properties>
 		<lastaflute.version>0.9.8</lastaflute.version>
-		<lasta.job.version>0.4.8</lasta.job.version>
+		<lasta.job.version>0.4.9</lasta.job.version>
 		<servlet.version>3.1.0</servlet.version>
 		<javaparser.version>3.2.6</javaparser.version>
 		<utflute.version>0.7.8</utflute.version>
