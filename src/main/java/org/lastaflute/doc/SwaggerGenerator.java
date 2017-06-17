@@ -15,6 +15,16 @@
  */
 package org.lastaflute.doc;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -33,18 +43,22 @@ import org.dbflute.jdbc.Classification;
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.dbflute.util.DfReflectionUtil;
+import org.dbflute.util.DfResourceUtil;
 import org.dbflute.util.DfStringUtil;
 import org.dbflute.util.DfTypeUtil;
 import org.hibernate.validator.constraints.Length;
 import org.lastaflute.core.direction.AccessibleConfig;
 import org.lastaflute.core.json.JsonManager;
 import org.lastaflute.core.json.SimpleJsonManager;
+import org.lastaflute.core.json.engine.GsonJsonEngine;
 import org.lastaflute.core.time.TimeManager;
 import org.lastaflute.core.util.ContainerUtil;
+import org.lastaflute.di.helper.misc.ParameterizedRef;
 import org.lastaflute.di.util.tiger.Tuple3;
 import org.lastaflute.doc.generator.ActionDocumentGenerator;
 import org.lastaflute.doc.meta.TypeDocMeta;
 import org.lastaflute.doc.util.LaDocReflectionUtil;
+import org.lastaflute.doc.web.LaActionSwaggerable;
 import org.lastaflute.web.util.LaRequestUtil;
 import org.lastaflute.web.util.LaServletContextUtil;
 import org.lastaflute.web.validation.Required;
@@ -58,12 +72,40 @@ public class SwaggerGenerator {
     // ===================================================================================
     //                                                                            Generate
     //                                                                            ========
+    public void saveSwaggerMeta(LaActionSwaggerable swaggerable) {
+        final String json = createJsonParser().toJson(swaggerable.json().getJsonResult());
+
+        final Path path = Paths.get(getLastaDocDir(), "swagger.json");
+        final Path parentPath = path.getParent();
+        if (!Files.exists(parentPath)) {
+            try {
+                Files.createDirectories(parentPath);
+            } catch (IOException e) {
+                throw new IllegalStateException("Failed to create directory: " + parentPath, e);
+            }
+        }
+
+        try (BufferedWriter bw = Files.newBufferedWriter(path, Charset.forName("UTF-8"))) {
+            bw.write(json);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to write the json to the file: " + path, e);
+        }
+    }
+
     public Map<String, Object> generateSwaggerMap() {
+        OptionalThing<Map<String, Object>> swaggerJson = readSwaggerJson();
+        if (swaggerJson.isPresent()) {
+            return swaggerJson.get();
+        }
         Map<String, Object> swaggerMap = createSwaggerMap();
         return swaggerMap;
     }
 
     public Map<String, Object> generateSwaggerMap(Consumer<SwaggerOption> op) {
+        OptionalThing<Map<String, Object>> swaggerJson = readSwaggerJson();
+        if (swaggerJson.isPresent()) {
+            return swaggerJson.get();
+        }
         SwaggerOption swaggerOption = new SwaggerOption();
         op.accept(swaggerOption);
         Map<String, Object> swaggerMap = createSwaggerMap();
@@ -82,7 +124,6 @@ public class SwaggerGenerator {
         swaggerMap.put("swagger", "2.0");
         Map<String, String> swaggerInfoMap = createSwaggerInfoMap();
         swaggerMap.put("info", swaggerInfoMap);
-        swaggerMap.put("host", LaRequestUtil.getRequest().getHeader("host"));
         swaggerMap.put("schemes", Arrays.asList(LaRequestUtil.getRequest().getScheme()));
 
         StringBuilder basePath = new StringBuilder();
@@ -103,6 +144,24 @@ public class SwaggerGenerator {
 
         createSwaggerPathMap(swaggerTagList, swaggerPathMap, swaggerDefinitionsMap);
         return swaggerMap;
+    }
+
+    protected OptionalThing<Map<String, Object>> readSwaggerJson() {
+        String swaggerJsonFilePath = "./swagger.json";
+        if (!DfResourceUtil.isExist(swaggerJsonFilePath)) {
+            return OptionalThing.empty();
+        }
+
+        try (InputStream inputStream = DfResourceUtil.getResourceStream(swaggerJsonFilePath);
+                InputStreamReader inputStreamReader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+                BufferedReader bufferedReader = new BufferedReader(inputStreamReader)) {
+            String json = DfResourceUtil.readText(bufferedReader);
+            return OptionalThing
+                    .of(getJsonManager().fromJsonParameteried(json, new ParameterizedRef<Map<String, Object>>() {
+                    }.getType()));
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to read the json to the file: " + swaggerJsonFilePath, e);
+        }
     }
 
     protected Map<String, String> createSwaggerInfoMap() {
@@ -173,8 +232,10 @@ public class SwaggerGenerator {
             swaggerHttpMethodMap.put("parameters", parameterMapList);
             swaggerHttpMethodMap.put("tags",
                     Arrays.asList(DfStringUtil.substringFirstFront(actiondocMeta.getUrl().replaceAll("^/", ""), "/")));
-            swaggerTagList.add(DfCollectionUtil.newLinkedHashMap("name",
-                    DfStringUtil.substringFirstFront(actiondocMeta.getUrl().replaceAll("^/", ""), "/")));
+            String tag = DfStringUtil.substringFirstFront(actiondocMeta.getUrl().replaceAll("^/", ""), "/");
+            if (swaggerTagList.stream().noneMatch(swaggerTag -> swaggerTag.containsValue(tag))) {
+                swaggerTagList.add(DfCollectionUtil.newLinkedHashMap("name", tag));
+            }
 
             Map<String, Object> responseMap = DfCollectionUtil.newLinkedHashMap();
             swaggerHttpMethodMap.put("responses", responseMap);
@@ -294,10 +355,11 @@ public class SwaggerGenerator {
         typeMap.put(byte[].class, Tuple3.tuple3("string", "byte", value -> value));
         typeMap.put(Boolean.class, Tuple3.tuple3("boolean", null, value -> DfTypeUtil.toBoolean(value)));
         TimeManager timeManager = getTimeManager();
+        LocalDate currentDate = timeManager.currentDate();
         typeMap.put(LocalDate.class, Tuple3.tuple3("string", "date",
-                value -> value == null ? getLocalDateFormatter().format(timeManager.currentDate()) : value));
+                value -> value == null ? getLocalDateFormatter().format(currentDate) : value));
         typeMap.put(LocalDateTime.class, Tuple3.tuple3("string", "date-time",
-                value -> value == null ? getLocalDateTimeFormatter().format(timeManager.currentDateTime()) : value));
+                value -> value == null ? getLocalDateTimeFormatter().format(currentDate.atStartOfDay()) : value));
         typeMap.put(int.class, Tuple3.tuple3("integer", "int32", value -> DfTypeUtil.toInteger(value)));
         typeMap.put(long.class, Tuple3.tuple3("integer", "int64", value -> DfTypeUtil.toLong(value)));
         typeMap.put(float.class, Tuple3.tuple3("integer", "float", value -> DfTypeUtil.toFloat(value)));
@@ -431,6 +493,16 @@ public class SwaggerGenerator {
                     return swaggerType.getValue3().apply(value);
                 }).collect(Collectors.toList()));
             }
+        } else if (Enum.class.isAssignableFrom(typeDocMeta.getType())) {
+            Object defaultValue = deriveDefaultValueByComment(typeDocMeta.getComment());
+            if (defaultValue != null) {
+                return OptionalThing.of(defaultValue);
+            } else {
+                List<String> enumValueList = buildEnumValueList(typeDocMeta.getType());
+                if (!enumValueList.isEmpty()) {
+                    return OptionalThing.of(enumValueList.get(0));
+                }
+            }
         }
         return OptionalThing.empty();
     }
@@ -456,6 +528,17 @@ public class SwaggerGenerator {
             }
         }
         return null;
+    }
+
+    // ===================================================================================
+    //                                                                        Small Helper
+    //                                                                        ============
+    protected GsonJsonEngine createJsonParser() {
+        return new DocumentGenerator().createJsonParser();
+    }
+
+    protected String getLastaDocDir() {
+        return new DocumentGenerator().getLastaDocDir();
     }
 
     // ===================================================================================

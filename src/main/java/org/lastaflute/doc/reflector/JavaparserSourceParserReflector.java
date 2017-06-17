@@ -189,7 +189,8 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
                         Pattern pattern = Pattern.compile(".*@param\\s?" + parameter.getNameAsString() + "\\s?(.*)\r?\n.*", Pattern.DOTALL);
                         Matcher matcher = pattern.matcher(comment);
                         if (matcher.matches()) {
-                            typeDocMeta.setDescription(matcher.group(1).replaceAll("\r?\n.*", ""));
+                            typeDocMeta.setComment(matcher.group(1).replaceAll("\r?\n.*", ""));
+                            typeDocMeta.setDescription(typeDocMeta.getComment().replaceAll(" ([^\\p{Alnum}]|e\\.g\\. )+.*", ""));
                         }
                     }
                 }
