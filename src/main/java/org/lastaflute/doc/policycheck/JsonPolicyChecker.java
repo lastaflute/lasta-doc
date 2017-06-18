@@ -20,11 +20,14 @@ import java.util.Map;
 
 import org.dbflute.util.Srl;
 import org.lastaflute.doc.meta.ActionDocMeta;
+import org.lastaflute.doc.policycheck.exception.JsonPolicyCheckViolationException;
+import org.lastaflute.doc.policycheck.exception.JsonPolicyUnknownPropertyException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @author yuto.eguma (2017/05/02 itoshima)
+ * @author yuto.eguma
+ * @since 1.? (2017/05/02 itoshima)
  */
 public class JsonPolicyChecker {
 
@@ -38,6 +41,7 @@ public class JsonPolicyChecker {
     //                                                                           =========
     protected final List<ActionDocMeta> _actionDocMetaList;
     protected final Map<String, Object> _policyMap;
+    protected final JsonPolicyFieldStatement _fieldStatement = new JsonPolicyFieldStatement();
 
     // ===================================================================================
     //                                                                         Constructor
@@ -84,23 +88,53 @@ public class JsonPolicyChecker {
         _actionDocMetaList.forEach(actionDocMeta -> {
             doCheck(actionDocMeta, result);
         });
+        if (result.isViolate()) {
+            throwJsonPolicyCheckViolationException(result);
+        } else {
+            _log.info("No violation of json policy, good!");
+        }
     }
 
     protected void doCheck(ActionDocMeta actionDocMeta, JsonPolicyResult result) {
         _policyMap.forEach((key, value) -> {
             if (key.equals("methodMap")) {
-                // @SuppressWarnings("unchecked")
-                // final Map<String, Object> methodMap = (Map<String, Object>) value;
-                // TODO yuto check method policy (2017/05/14)
+                @SuppressWarnings("unchecked")
+                final Map<String, Object> methodMap = (Map<String, Object>) value;
+                doCheckMethodMap(actionDocMeta, methodMap, result);
             } else if (key.equals("fieldMap")) {
-                // @SuppressWarnings("unchecked")
-                // final Map<String, Object> fieldMap = (Map<String, Object>) value;
-                // TODO yuto check field policy (2017/05/14)
+                @SuppressWarnings("unchecked")
+                final Map<String, Object> fieldMap = (Map<String, Object>) value;
+                doCheckFieldMap(actionDocMeta, fieldMap, result);
             } else {
                 if (!Srl.equalsPlain(key, "actionExceptList", "actionTargetList", "methodExceptMap", "fieldExceptMap")) {
                     // TODO yuto throw unknown Exception (2017/05/14)
                 }
             }
         });
+    }
+
+    protected void throwJsonPolicyCheckViolationException(JsonPolicyResult result) {
+        // TODO yuto create impact with logger in miscSecretary (2017/06/13)
+        throw new JsonPolicyCheckViolationException("Json policy violation exist on your json api");
+    }
+
+    protected void throwJsonPolicyUnknownPropertyException(String property) {
+        // TODO yuto create impact with logger in miscSecretary (2017/06/13)
+        throw new JsonPolicyUnknownPropertyException("unknown property");
+    }
+
+    // ===================================================================================
+    //                                                                        Check Method
+    //                                                                        ============
+    protected void doCheckMethodMap(ActionDocMeta actionDocMeta, Map<String, Object> methodMap, JsonPolicyResult result) {
+        // TODO yuto check method policy (endpoint url, http method) (2017/05/14)
+    }
+
+    // ===================================================================================
+    //                                                                         Check Field
+    //                                                                         ===========
+    protected void doCheckFieldMap(ActionDocMeta actionDocMeta, Map<String, Object> fieldMap, JsonPolicyResult result) {
+        // TODO yuto check field theme policy (2017/05/14)
+        _fieldStatement.checkFieldStatement(actionDocMeta, fieldMap, result);
     }
 }

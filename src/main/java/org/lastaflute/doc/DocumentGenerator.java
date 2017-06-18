@@ -52,7 +52,7 @@ public class DocumentGenerator {
     /** source directory. */
     protected static final String SRC_DIR = "src/main/java/";
     /** source policy map */
-    protected static final String POLICY_MAP_PATH = "./src/main/resources/jsonPolicyMap.dfprop";
+    protected static final String POLICY_MAP_PATH = "src/main/resources/jsonPolicyMap.dfprop";
 
     /** depth. */
     protected static final int DEPTH = 4;
