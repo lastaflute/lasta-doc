@@ -115,7 +115,7 @@ public class JsonPolicyChecker {
 
     protected void throwJsonPolicyCheckViolationException(JsonPolicyResult result) {
         // TODO yuto create impact with logger in miscSecretary (2017/06/13)
-        throw new JsonPolicyCheckViolationException("Json policy violation exist on your json api");
+        throw new JsonPolicyCheckViolationException("json policy violation exist on your json api");
     }
 
     protected void throwJsonPolicyUnknownPropertyException(String property) {

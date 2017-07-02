@@ -2,6 +2,9 @@ package org.lastaflute.doc.policycheck;
 
 import org.dbflute.util.Srl;
 import org.dbflute.util.Srl.ScopeInfo;
+import org.lastaflute.doc.policycheck.util.JsonPolicyNameHintUtil;
+
+import java.util.List;
 
 /**
  * @author yuto.eguma
@@ -67,6 +70,43 @@ public class JsonPolicyMiscSecretary {
                 notThenValue, supplement);
     }
 
+    // ===================================================================================
+    //                                                                           Hit Logic
+    //                                                                           =========
+    public boolean isHitFieldType(String fieldType, String hint) {
+        return determineHitBy(fieldType, hint);
+    }
+
+    protected boolean determineHitBy(String name, String hint) {
+        if (name == null) {
+            return false;
+        }
+        if ("$$ALL$$".equalsIgnoreCase(hint)) {
+            return true;
+        } else if (hint.contains(" and ")) {
+            final List<String> elementHintList = Srl.splitListTrimmed(hint, " and ");
+            for (String elementHint : elementHintList) {
+                if (!JsonPolicyNameHintUtil.isHitByTheHint(name, elementHint)) {
+                    return false;
+                }
+            }
+            return true;
+        } else if (hint.contains(" or ")) {
+            final List<String> elementHintList = Srl.splitListTrimmed(hint, " or ");
+            for (String elementHint : elementHintList) {
+                if (JsonPolicyNameHintUtil.isHitByTheHint(name, elementHint)) {
+                    return true;
+                }
+            }
+            return false;
+        } else {
+            return JsonPolicyNameHintUtil.isHitByTheHint(name, hint);
+        }
+    }
+
+    // ===================================================================================
+    //                                                                  Settings Exception
+    //                                                                  ==================
     private void throwJsonPolicyCheckIllegalIfThenStatementException(String statement, String additional) {
         // TODO yuto throw exception (2017/05/28)
     }

@@ -1,5 +1,6 @@
 package org.lastaflute.doc.policycheck;
 
+import org.dbflute.util.Srl;
 import org.lastaflute.doc.meta.ActionDocMeta;
 import org.lastaflute.doc.meta.TypeDocMeta;
 
@@ -49,19 +50,10 @@ public class JsonPolicyFieldStatement {
         final String ifValue = ifClause.getIfValue();  // suffix:Str
         final boolean notIfValue = ifClause.isNotIfValue();
         if (ifItem.equalsIgnoreCase("fieldName")) { // if fieldName is ...
-            if (isHitField(fieldTypeDocMeta.getName(), ifValue) != notIfValue) {
+            if (isHitFieldType(fieldTypeDocMeta.getName(), ifValue) != notIfValue) {
                 evaluateFieldThenClause(fieldTypeDocMeta, result, ifClause);
             }
         }
-    }
-
-    protected boolean isHitField(String fieldName, String value) {
-        if (value.contains("suffix:")) {
-            String suffix = value.replace("suffix:", "");
-            return fieldName.endsWith(suffix);
-        }
-        // TODO yuto consider this method should throw exception if IllegalValue (2017/05/28)
-        return false;
     }
 
     // -----------------------------------------------------
@@ -69,7 +61,7 @@ public class JsonPolicyFieldStatement {
     //                                           -----------
     protected void evaluateFieldThenClause(TypeDocMeta fieldTypeDocMeta, JsonPolicyResult result, JsonPolicyIfClause ifClause) {
         final String thenClause = ifClause.getThenClause();
-        if (ifClause.getThenItem() != null) { // e.g. then type is Integer
+        if (ifClause.getThenItem() != null) { // e.g. then fieldType is Integer
             evaluateFieldThenItemValue(fieldTypeDocMeta, result, ifClause);
         } else {
             final boolean notThenClause = ifClause.isNotThenClause(); // e.g. then bad
@@ -82,15 +74,29 @@ public class JsonPolicyFieldStatement {
     protected void evaluateFieldThenItemValue(TypeDocMeta fieldTypeDocMeta, JsonPolicyResult result, JsonPolicyIfClause ifClause) {
         final String thenItem = ifClause.getThenItem();
         final String thenValue = ifClause.getThenValue();
-        if (thenItem.equalsIgnoreCase("type")) {
-            String typeName = fieldTypeDocMeta.getTypeName();
-            if (typeName.equalsIgnoreCase(thenValue)) {
-                result.addViolation("The field is no good: " + toFieldDisp(fieldTypeDocMeta));
+        final boolean notThenValue = ifClause.isNotThenValue();
+        if (thenItem.equalsIgnoreCase("fieldType")) { // e.g.  if ... then fieldType is Integer or Long
+            String fieldType = toTypeNameOnly(fieldTypeDocMeta.getTypeName());
+            if (!isHitFieldType(fieldType, thenValue) == !notThenValue) {
+                result.addViolation("The fieldType is no good: " + toFieldDisp(fieldTypeDocMeta));
             }
         }
     }
 
+    protected String toTypeNameOnly(String fullTypeName) { // e.g. java.lang.Integer -> Integer
+        List<String> packageNameList = Srl.splitList(fullTypeName, ".");
+        return packageNameList.get(packageNameList.size() - 1);
+    }
+
     protected String toFieldDisp(TypeDocMeta fieldTypeDocMeta) {
+        // TODO yuto detail log (2017/07/02)
         return fieldTypeDocMeta.getName();
+    }
+
+    // ===================================================================================
+    //                                                                        Assist Logic
+    //                                                                        ============
+    protected boolean isHitFieldType(String fieldType, String hint) {
+        return _secretary.isHitFieldType(fieldType, hint);
     }
 }

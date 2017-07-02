@@ -10,7 +10,7 @@ map:{
         ; themeList = list:{}
         ; statementList = list:{
             ; if fieldName is suffix:Str then bad
-            # ; if fieldName is suffix:Id then fieldType is Integer or Long
+            ; if fieldName is suffix:Id then fieldType is Integer or Long
         }
     }
 }
