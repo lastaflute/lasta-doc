@@ -518,14 +518,14 @@ public class SwaggerGenerator {
                     if (value.startsWith("\"") && value.endsWith("\"")) {
                         return value.substring(1, value.length() - 1);
                     }
-                    return value == "null" ? null : value;
+                    return "null".equals(value) ? null : value;
                 }).collect(Collectors.toList());
             }
             Pattern pattern = Pattern.compile(" e\\.g\\. ([^ ]+)");
             Matcher matcher = pattern.matcher(comment);
             if (matcher.find()) {
                 String value = matcher.group(1);
-                return value == "null" ? null : value;
+                return "null".equals(value) ? null : value;
             }
         }
         return null;
