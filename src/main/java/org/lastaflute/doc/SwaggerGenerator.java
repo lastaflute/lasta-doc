@@ -29,6 +29,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -220,7 +221,7 @@ public class SwaggerGenerator {
                     schema.put("type", "object");
                     schema.put("properties", actiondocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(typeDocMeta -> {
                         return createSwaggerParameterMap(typeDocMeta, swaggerDefinitionsMap);
-                    }).collect(Collectors.toMap(key -> key.get("name"), value -> value)));
+                    }).collect(Collectors.toMap(key -> key.get("name"), value -> value, (u, v) -> v, LinkedHashMap::new)));
                     swaggerDefinitionsMap.put(actiondocMeta.getFormTypeDocMeta().getTypeName(), schema);
                     swaggerParameterMap.put("schema",
                             DfCollectionUtil.newLinkedHashMap("$ref", "#/definitions/" + actiondocMeta.getFormTypeDocMeta().getTypeName()));
@@ -245,7 +246,7 @@ public class SwaggerGenerator {
             schema.put("type", "object");
             schema.put("properties", actiondocMeta.getReturnTypeDocMeta().getNestTypeDocMetaList().stream().map(typeDocMeta -> {
                 return createSwaggerParameterMap(typeDocMeta, swaggerDefinitionsMap);
-            }).collect(Collectors.toMap(key -> key.get("name"), value -> value)));
+            }).collect(Collectors.toMap(key -> key.get("name"), value -> value, (u, v) -> v, LinkedHashMap::new)));
             swaggerDefinitionsMap.put(actiondocMeta.getReturnTypeDocMeta().getTypeName(), schema);
 
             responseMap.put("200", DfCollectionUtil.newLinkedHashMap("description", "success", "schema",
@@ -340,7 +341,7 @@ public class SwaggerGenerator {
         schema.put("type", "object");
         schema.put("properties", typeDocMeta.getNestTypeDocMetaList().stream().map(nestTypeDocMeta -> {
             return createSwaggerParameterMap(nestTypeDocMeta, definitionsMap);
-        }).collect(Collectors.toMap(key -> key.get("name"), value -> value)));
+        }).collect(Collectors.toMap(key -> key.get("name"), value -> value, (u, v) -> v, LinkedHashMap::new)));
         definitionsMap.put(typeDocMeta.getTypeName(), schema);
         return "#/definitions/" + typeDocMeta.getTypeName();
     }
