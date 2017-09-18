@@ -18,10 +18,10 @@ package org.lastaflute.doc.generator;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import org.dbflute.jdbc.Classification;
@@ -71,7 +71,7 @@ public class BaseDocumentGenerator {
                     }).collect(Collectors.toList());
                 }
                 return data;
-            }, (v1, v2) -> v1, TreeMap::new));
+            }, (u, v) -> v, LinkedHashMap::new));
 
             if (methodMap.isEmpty()) {
                 return typeName;

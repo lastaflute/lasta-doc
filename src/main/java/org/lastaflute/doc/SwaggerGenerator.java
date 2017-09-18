@@ -27,8 +27,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -220,7 +222,7 @@ public class SwaggerGenerator {
                     schema.put("type", "object");
                     schema.put("properties", actiondocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(typeDocMeta -> {
                         return createSwaggerParameterMap(typeDocMeta, swaggerDefinitionsMap);
-                    }).collect(Collectors.toMap(key -> key.get("name"), value -> value)));
+                    }).collect(Collectors.toMap(key -> key.get("name"), value -> value, (u, v) -> v, LinkedHashMap::new)));
                     swaggerDefinitionsMap.put(actiondocMeta.getFormTypeDocMeta().getTypeName(), schema);
                     swaggerParameterMap.put("schema",
                             DfCollectionUtil.newLinkedHashMap("$ref", "#/definitions/" + actiondocMeta.getFormTypeDocMeta().getTypeName()));
@@ -245,7 +247,7 @@ public class SwaggerGenerator {
             schema.put("type", "object");
             schema.put("properties", actiondocMeta.getReturnTypeDocMeta().getNestTypeDocMetaList().stream().map(typeDocMeta -> {
                 return createSwaggerParameterMap(typeDocMeta, swaggerDefinitionsMap);
-            }).collect(Collectors.toMap(key -> key.get("name"), value -> value)));
+            }).collect(Collectors.toMap(key -> key.get("name"), value -> value, (u, v) -> v, LinkedHashMap::new)));
             swaggerDefinitionsMap.put(actiondocMeta.getReturnTypeDocMeta().getTypeName(), schema);
 
             responseMap.put("200", DfCollectionUtil.newLinkedHashMap("description", "success", "schema",
@@ -340,7 +342,7 @@ public class SwaggerGenerator {
         schema.put("type", "object");
         schema.put("properties", typeDocMeta.getNestTypeDocMetaList().stream().map(nestTypeDocMeta -> {
             return createSwaggerParameterMap(nestTypeDocMeta, definitionsMap);
-        }).collect(Collectors.toMap(key -> key.get("name"), value -> value)));
+        }).collect(Collectors.toMap(key -> key.get("name"), value -> value, (u, v) -> v, LinkedHashMap::new)));
         definitionsMap.put(typeDocMeta.getTypeName(), schema);
         return "#/definitions/" + typeDocMeta.getTypeName();
     }
@@ -354,12 +356,12 @@ public class SwaggerGenerator {
         typeMap.put(String.class, Tuple3.tuple3("string", null, value -> value));
         typeMap.put(byte[].class, Tuple3.tuple3("string", "byte", value -> value));
         typeMap.put(Boolean.class, Tuple3.tuple3("boolean", null, value -> DfTypeUtil.toBoolean(value)));
-        TimeManager timeManager = getTimeManager();
-        LocalDate currentDate = timeManager.currentDate();
         typeMap.put(LocalDate.class, Tuple3.tuple3("string", "date",
-                value -> value == null ? getLocalDateFormatter().format(currentDate) : value));
+                value -> value == null ? getLocalDateFormatter().format(getDefaultLocalDate()) : value));
         typeMap.put(LocalDateTime.class, Tuple3.tuple3("string", "date-time",
-                value -> value == null ? getLocalDateTimeFormatter().format(currentDate.atStartOfDay()) : value));
+                value -> value == null ? getLocalDateTimeFormatter().format(getDefaultLocalDateTime()) : value));
+        typeMap.put(LocalTime.class, Tuple3.tuple3("string", null,
+                value -> value == null ? getLocalTimeFormatter().format(getDefaultLocalTime()) : value));
         typeMap.put(int.class, Tuple3.tuple3("integer", "int32", value -> DfTypeUtil.toInteger(value)));
         typeMap.put(long.class, Tuple3.tuple3("integer", "int64", value -> DfTypeUtil.toLong(value)));
         typeMap.put(float.class, Tuple3.tuple3("integer", "float", value -> DfTypeUtil.toFloat(value)));
@@ -440,6 +442,17 @@ public class SwaggerGenerator {
         return OptionalThing.empty();
     }
 
+    protected LocalDate getDefaultLocalDate() {
+        TimeManager timeManager = getTimeManager();
+        return timeManager.currentDate();
+    }
+    protected LocalDateTime getDefaultLocalDateTime() {
+        return getDefaultLocalDate().atStartOfDay();
+    }
+    protected LocalTime getDefaultLocalTime() {
+        return LocalTime.from(getDefaultLocalDateTime());
+    }
+
     protected DateTimeFormatter getLocalDateFormatter() {
         OptionalThing<DateTimeFormatter> localDateFormatter;
         JsonManager jsonManager = getJsonManager();
@@ -466,6 +479,20 @@ public class SwaggerGenerator {
             localDateTimeFormatter = OptionalThing.empty();
         }
         return localDateTimeFormatter.orElseGet(() -> DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS"));
+    }
+
+    protected DateTimeFormatter getLocalTimeFormatter() {
+        OptionalThing<DateTimeFormatter> localDateTimeFormatter;
+        JsonManager jsonManager = getJsonManager();
+        if (jsonManager instanceof SimpleJsonManager) {
+            localDateTimeFormatter = LaDocReflectionUtil.getNoException(() -> {
+                return ((SimpleJsonManager) jsonManager).getJsonMappingOption()
+                        .flatMap(jsonMappingOption -> jsonMappingOption.getLocalTimeFormatter());
+            });
+        } else {
+            localDateTimeFormatter = OptionalThing.empty();
+        }
+        return localDateTimeFormatter.orElseGet(() -> DateTimeFormatter.ofPattern("HH:mm:ss.SSS"));
     }
 
     protected OptionalThing<Object> deriveDefaultValue(TypeDocMeta typeDocMeta) {
@@ -509,22 +536,24 @@ public class SwaggerGenerator {
 
     protected Object deriveDefaultValueByComment(String comment) {
         if (DfStringUtil.is_NotNull_and_NotEmpty(comment)) {
-            if (comment.contains("e.g. \"")) {
-                return DfStringUtil.substringFirstFront(DfStringUtil.substringFirstRear(comment, "e.g. \""), "\"");
+            String commentWithoutLine = comment.replaceAll("\r?\n", " ");
+            if (commentWithoutLine.contains(" e.g. \"")) {
+                return DfStringUtil.substringFirstFront(DfStringUtil.substringFirstRear(commentWithoutLine, " e.g. \""), "\"");
             }
-            if (comment.contains("e.g. [")) {
-                String defaultValue = DfStringUtil.substringFirstFront(DfStringUtil.substringFirstRear(comment, "e.g. ["), "]");
+            if (commentWithoutLine.contains(" e.g. [")) {
+                String defaultValue = DfStringUtil.substringFirstFront(DfStringUtil.substringFirstRear(commentWithoutLine, " e.g. ["), "]");
                 return Arrays.stream(defaultValue.split(", *")).map(value -> {
                     if (value.startsWith("\"") && value.endsWith("\"")) {
                         return value.substring(1, value.length() - 1);
                     }
-                    return value;
+                    return "null".equals(value) ? null : value;
                 }).collect(Collectors.toList());
             }
             Pattern pattern = Pattern.compile(" e\\.g\\. ([^ ]+)");
-            Matcher matcher = pattern.matcher(comment);
+            Matcher matcher = pattern.matcher(commentWithoutLine);
             if (matcher.find()) {
-                return matcher.group(1);
+                String value = matcher.group(1);
+                return "null".equals(value) ? null : value;
             }
         }
         return null;

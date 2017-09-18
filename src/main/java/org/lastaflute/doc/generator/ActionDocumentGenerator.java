@@ -29,10 +29,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -455,7 +455,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
                 return ((Classification) keyMapper).code();
             }, valueMapper -> {
                 return ((Classification) valueMapper).alias();
-            })).toString(); // e.g. {FML = Formalized, PRV = Provisinal, ...}
+            }, (u, v) -> v, LinkedHashMap::new)).toString(); // e.g. {FML = Formalized, PRV = Provisinal, ...}
         } else {
             final Enum<?>[] constants = (Enum<?>[]) typeClass.getEnumConstants();
             valuesExp = Arrays.stream(constants).collect(Collectors.toList()).toString(); // e.g. [SEA, LAND, PIARI]
@@ -475,7 +475,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
             return key.getUrl().replaceAll("\\{.*", "").replaceAll("/$", "").replaceAll("/", "_");
         }, value -> {
             return convertPropertyNameMap("", value.getFormTypeDocMeta());
-        }, (v1, v2) -> v1, TreeMap::new));
+        }, (u, v) -> v, LinkedHashMap::new));
         return propertyNameMap;
     }
 

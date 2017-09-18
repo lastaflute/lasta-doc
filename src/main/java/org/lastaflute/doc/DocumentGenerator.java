@@ -72,12 +72,12 @@ public class DocumentGenerator {
     //                                                                         ===========
     public DocumentGenerator() {
         this.srcDirList = DfCollectionUtil.newArrayList();
+        this.srcDirList.add(SRC_DIR);
         final String commonDir =
                 "../" + new File(".").getAbsoluteFile().getParentFile().getName().replaceAll("-.*", "-common") + "/" + SRC_DIR;
         if (new File(commonDir).exists()) {
             this.srcDirList.add(commonDir);
         }
-        this.srcDirList.add(SRC_DIR);
         this.depth = DEPTH;
         this.sourceParserReflector = createSourceParserReflectorFactory().reflector(srcDirList);
     }

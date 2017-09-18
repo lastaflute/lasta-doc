@@ -370,27 +370,27 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
     //                                                                         Parse Class
     //                                                                         ===========
     protected OptionalThing<CompilationUnit> parseClass(Class<?> clazz) {
-        if (compilationUnitMap.containsKey(clazz)) {
-            return OptionalThing.of(compilationUnitMap.get(clazz));
-        }
-
-        for (String srcDir : srcDirList) {
-            File file = new File(srcDir, clazz.getName().replace('.', File.separatorChar) + ".java");
-            if (!file.exists()) {
-                file = new File(srcDir, clazz.getName().replace('.', File.separatorChar).replaceAll("\\$.*", "") + ".java");
+        if (!compilationUnitMap.containsKey(clazz)) {
+            for (String srcDir : srcDirList) {
+                File file = new File(srcDir, clazz.getName().replace('.', File.separatorChar) + ".java");
                 if (!file.exists()) {
-                    continue;
+                    file = new File(srcDir, clazz.getName().replace('.', File.separatorChar).replaceAll("\\$.*", "") + ".java");
+                    if (!file.exists()) {
+                        continue;
+                    }
+                }
+                try (FileInputStream in = new FileInputStream(file)) {
+                    CompilationUnit compilationUnit = JavaParser.parse(in);
+                    compilationUnitMap.put(clazz, compilationUnit);
+                    return OptionalThing.of(compilationUnit);
+                } catch (IOException e) {
+                    return OptionalThing.empty();
                 }
             }
-            try (FileInputStream in = new FileInputStream(file)) {
-                CompilationUnit compilationUnit = JavaParser.parse(in);
-                compilationUnitMap.put(clazz, compilationUnit);
-                return OptionalThing.of(compilationUnit);
-            } catch (IOException e) {
-                return OptionalThing.empty();
-            }
+            compilationUnitMap.put(clazz, null);
         }
-
-        return OptionalThing.empty();
+		return OptionalThing.ofNullable(compilationUnitMap.get(clazz), () -> {
+			throw new IllegalStateException("Source file don't exist.");
+		});
     }
 }
