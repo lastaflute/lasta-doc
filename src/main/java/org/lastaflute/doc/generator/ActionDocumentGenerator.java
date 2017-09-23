@@ -298,6 +298,12 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     protected TypeDocMeta analyzeReturnClass(Method method) {
         final TypeDocMeta returnTypeDocMeta = new TypeDocMeta();
         returnTypeDocMeta.setType(method.getReturnType());
+        String genericTypeName = method.getGenericReturnType().getTypeName().replaceAll(".*\\<(.+)\\>", "$1");
+        try {
+            returnTypeDocMeta.setGenericType(DfReflectionUtil.forName(genericTypeName));
+        } catch (ReflectionFailureException e) {
+            // ignore
+        }
         returnTypeDocMeta.setTypeName(adjustTypeName(method.getGenericReturnType()));
         returnTypeDocMeta.setSimpleTypeName(adjustSimpleTypeName(method.getGenericReturnType()));
         Class<?> returnClass = DfReflectionUtil.getGenericFirstClass(method.getGenericReturnType());
@@ -315,7 +321,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
                 });
             });
 
-            if (List.class.isAssignableFrom(returnClass)) {
+            if (Iterable.class.isAssignableFrom(returnClass)) {
                 String returnClassName = returnTypeDocMeta.getTypeName().replaceAll(JsonResponse.class.getSimpleName() + "<(.*)>", "$1");
                 Matcher matcher = Pattern.compile(".+<([^,]+)>").matcher(returnClassName);
                 if (matcher.matches()) {

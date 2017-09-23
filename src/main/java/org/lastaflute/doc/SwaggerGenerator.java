@@ -61,6 +61,10 @@ import org.lastaflute.doc.generator.ActionDocumentGenerator;
 import org.lastaflute.doc.meta.TypeDocMeta;
 import org.lastaflute.doc.util.LaDocReflectionUtil;
 import org.lastaflute.doc.web.LaActionSwaggerable;
+import org.lastaflute.web.response.ActionResponse;
+import org.lastaflute.web.response.ApiResponse;
+import org.lastaflute.web.response.HtmlResponse;
+import org.lastaflute.web.response.XmlResponse;
 import org.lastaflute.web.util.LaRequestUtil;
 import org.lastaflute.web.util.LaServletContextUtil;
 import org.lastaflute.web.validation.Required;
@@ -223,9 +227,9 @@ public class SwaggerGenerator {
                     schema.put("properties", actiondocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(typeDocMeta -> {
                         return createSwaggerParameterMap(typeDocMeta, swaggerDefinitionsMap);
                     }).collect(Collectors.toMap(key -> key.get("name"), value -> value, (u, v) -> v, LinkedHashMap::new)));
-                    swaggerDefinitionsMap.put(actiondocMeta.getFormTypeDocMeta().getTypeName(), schema);
-                    swaggerParameterMap.put("schema",
-                            DfCollectionUtil.newLinkedHashMap("$ref", "#/definitions/" + actiondocMeta.getFormTypeDocMeta().getTypeName()));
+                    swaggerDefinitionsMap.put(derivedDefinitionName(actiondocMeta.getFormTypeDocMeta()), schema);
+                    swaggerParameterMap.put("schema", DfCollectionUtil.newLinkedHashMap("$ref",
+                            "#/definitions/" + derivedDefinitionName(actiondocMeta.getFormTypeDocMeta())));
                     parameterMapList.add(swaggerParameterMap);
                 }
             }
@@ -241,17 +245,17 @@ public class SwaggerGenerator {
 
             Map<String, Object> responseMap = DfCollectionUtil.newLinkedHashMap();
             swaggerHttpMethodMap.put("responses", responseMap);
-            swaggerHttpMethodMap.put("produces", Arrays.asList("application/json"));
+            swaggerHttpMethodMap.put("produces", Arrays.asList(createProduceMap().get(actiondocMeta.getReturnTypeDocMeta().getType())));
 
             Map<String, Object> schema = DfCollectionUtil.newLinkedHashMap();
             schema.put("type", "object");
             schema.put("properties", actiondocMeta.getReturnTypeDocMeta().getNestTypeDocMetaList().stream().map(typeDocMeta -> {
                 return createSwaggerParameterMap(typeDocMeta, swaggerDefinitionsMap);
             }).collect(Collectors.toMap(key -> key.get("name"), value -> value, (u, v) -> v, LinkedHashMap::new)));
-            swaggerDefinitionsMap.put(actiondocMeta.getReturnTypeDocMeta().getTypeName(), schema);
+            swaggerDefinitionsMap.put(derivedDefinitionName(actiondocMeta.getReturnTypeDocMeta()), schema);
 
             responseMap.put("200", DfCollectionUtil.newLinkedHashMap("description", "success", "schema",
-                    DfCollectionUtil.newLinkedHashMap("$ref", "#/definitions/" + actiondocMeta.getReturnTypeDocMeta().getTypeName())));
+                    DfCollectionUtil.newLinkedHashMap("$ref", "#/definitions/" + derivedDefinitionName(actiondocMeta.getReturnTypeDocMeta()))));
             responseMap.put("400", DfCollectionUtil.newLinkedHashMap("description", "client error"));
         });
     }
@@ -343,8 +347,28 @@ public class SwaggerGenerator {
         schema.put("properties", typeDocMeta.getNestTypeDocMetaList().stream().map(nestTypeDocMeta -> {
             return createSwaggerParameterMap(nestTypeDocMeta, definitionsMap);
         }).collect(Collectors.toMap(key -> key.get("name"), value -> value, (u, v) -> v, LinkedHashMap::new)));
-        definitionsMap.put(typeDocMeta.getTypeName(), schema);
-        return "#/definitions/" + typeDocMeta.getTypeName();
+        definitionsMap.put(derivedDefinitionName(typeDocMeta), schema);
+        return "#/definitions/" + derivedDefinitionName(typeDocMeta);
+    }
+
+    protected String derivedDefinitionName(TypeDocMeta typeDocMeta) {
+        if (typeDocMeta.getGenericType() != null) {
+            return typeDocMeta.getGenericType().getName();
+        } else {
+            if (typeDocMeta.getTypeName().matches("^[^<]+<(.+)>$")) {
+                return typeDocMeta.getTypeName().replaceAll("^[^<]+<(.+)>$", "$1");    
+            }
+            return typeDocMeta.getTypeName();
+        }
+    }
+
+    protected Map<Class<? extends ActionResponse>, String> createProduceMap() {
+        Map<Class<? extends ActionResponse>, String> produceMap = DfCollectionUtil.newHashMap();
+        produceMap.put(ApiResponse.class, "application/json");
+        produceMap.put(XmlResponse.class, "application/xml");
+        produceMap.put(HtmlResponse.class, "text/html");
+        //produceMap.put(StreamResponse.class, "");
+        return produceMap;
     }
 
     protected Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> createTypeMap() {
