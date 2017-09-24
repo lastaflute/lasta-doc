@@ -102,13 +102,13 @@ public class SwaggerGenerator {
         return generateSwaggerMap(op -> {});
     }
 
-    public Map<String, Object> generateSwaggerMap(Consumer<SwaggerOption> op) {
+    public Map<String, Object> generateSwaggerMap(Consumer<SwaggerOption> opLampbda) {
         OptionalThing<Map<String, Object>> swaggerJson = readSwaggerJson();
         if (swaggerJson.isPresent()) {
             return swaggerJson.get();
         }
         SwaggerOption swaggerOption = new SwaggerOption();
-        op.accept(swaggerOption);
+        opLampbda.accept(swaggerOption);
         Map<String, Object> swaggerMap = createSwaggerMap(swaggerOption);
         return swaggerMap;
     }
