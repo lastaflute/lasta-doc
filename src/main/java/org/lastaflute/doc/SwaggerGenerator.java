@@ -58,12 +58,12 @@ import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.di.helper.misc.ParameterizedRef;
 import org.lastaflute.di.util.tiger.Tuple3;
 import org.lastaflute.doc.generator.ActionDocumentGenerator;
+import org.lastaflute.doc.meta.ActionDocMeta;
 import org.lastaflute.doc.meta.TypeDocMeta;
 import org.lastaflute.doc.util.LaDocReflectionUtil;
 import org.lastaflute.doc.web.LaActionSwaggerable;
-import org.lastaflute.web.response.ActionResponse;
-import org.lastaflute.web.response.ApiResponse;
 import org.lastaflute.web.response.HtmlResponse;
+import org.lastaflute.web.response.JsonResponse;
 import org.lastaflute.web.response.XmlResponse;
 import org.lastaflute.web.util.LaRequestUtil;
 import org.lastaflute.web.util.LaServletContextUtil;
@@ -245,7 +245,7 @@ public class SwaggerGenerator {
 
             Map<String, Object> responseMap = DfCollectionUtil.newLinkedHashMap();
             swaggerHttpMethodMap.put("responses", responseMap);
-            swaggerHttpMethodMap.put("produces", Arrays.asList(createProduceMap().get(actiondocMeta.getReturnTypeDocMeta().getType())));
+            swaggerHttpMethodMap.put("produces", derivedProduces(actiondocMeta));
 
             Map<String, Object> schema = DfCollectionUtil.newLinkedHashMap();
             schema.put("type", "object");
@@ -362,13 +362,13 @@ public class SwaggerGenerator {
         }
     }
 
-    protected Map<Class<? extends ActionResponse>, String> createProduceMap() {
-        Map<Class<? extends ActionResponse>, String> produceMap = DfCollectionUtil.newHashMap();
-        produceMap.put(ApiResponse.class, "application/json");
-        produceMap.put(XmlResponse.class, "application/xml");
-        produceMap.put(HtmlResponse.class, "text/html");
+    protected List<String> derivedProduces(ActionDocMeta actiondocMeta) {
+        Map<Class<?>, List<String>> produceMap = DfCollectionUtil.newHashMap();
+        produceMap.put(JsonResponse.class, Arrays.asList("application/json"));
+        produceMap.put(XmlResponse.class, Arrays.asList("application/xml"));
+        produceMap.put(HtmlResponse.class, Arrays.asList("text/html"));
         //produceMap.put(StreamResponse.class, "");
-        return produceMap;
+        return produceMap.get(actiondocMeta.getReturnTypeDocMeta().getType());
     }
 
     protected Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> createTypeMap() {
