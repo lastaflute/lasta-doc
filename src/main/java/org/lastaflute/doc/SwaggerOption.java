@@ -32,17 +32,24 @@ public class SwaggerOption {
     // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
-    protected Function<String, String> basePathLamda = null;
-    protected List<Map<String, Object>> headerParameterList = null;
-    protected List<Map<String, Object>> securityDefinitionList = null;
+    protected Function<String, String> basePathLambda;
+    protected List<Map<String, Object>> headerParameterList;
+    protected List<Map<String, Object>> securityDefinitionList;
 
     // ===================================================================================
     //                                                                               Basic
     //                                                                               =====
-    public void derivedBasePath(Function<String, String> basePathLamda) {
-        this.basePathLamda = basePathLamda;
+    /**
+     * Derive application base path (e.g. /showbase/) by filter.
+     * <pre>
+     * op.derivedBasePath(basePath -&gt; basePath + "api/");
+     * </pre>
+     * @param oneArgLambda The callback of base path filter. (NotNull)
+     */
+    public void derivedBasePath(Function<String, String> oneArgLambda) {
+        this.basePathLambda = oneArgLambda;
     }
-    
+
     // ===================================================================================
     //                                                                    Header Parameter
     //                                                                    ================
@@ -147,7 +154,7 @@ public class SwaggerOption {
     //                                                                            Accessor
     //                                                                            ========
     public OptionalThing<Function<String, String>> getDerivedBasePath() {
-        return OptionalThing.ofNullable(basePathLamda, () -> {
+        return OptionalThing.ofNullable(basePathLambda, () -> {
             throw new IllegalStateException("Not set derivedBasePathLamda.");
         });
     }

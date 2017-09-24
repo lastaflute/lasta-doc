@@ -75,9 +75,93 @@ import org.lastaflute.web.validation.Required;
  */
 public class SwaggerGenerator {
 
+    /* e.g. SwaggerAction implementation
+    @AllowAnyoneAccess
+    public class SwaggerAction extends FortressBaseAction {
+    
+        // ===================================================================================
+        //                                                                           Attribute
+        //                                                                           =========
+        @Resource
+        private RequestManager requestManager;
+        @Resource
+        private FortressConfig config;
+    
+        // ===================================================================================
+        //                                                                             Execute
+        //                                                                             =======
+        @Execute
+        public HtmlResponse index() {
+            verifySwaggerAllowed();
+            String swaggerJsonUrl = toActionUrl(SwaggerAction.class, moreUrl("json"));
+            return new SwaggerAgent(requestManager).prepareSwaggerUiResponse(swaggerJsonUrl);
+        }
+    
+        @Execute
+        public JsonResponse<Map<String, Object>> json() {
+            verifySwaggerAllowed();
+            return asJson(new SwaggerGenerator().generateSwaggerMap());
+        }
+    
+        private void verifySwaggerAllowed() { // also check in ActionAdjustmentProvider
+            verifyOrClientError("Swagger is not enabled.", config.isSwaggerEnabled());
+        }
+    }
+     */
+
+    /* e.g. LastaDocTest implementation
+    public class ShowbaseLastaDocTest extends UnitShowbaseTestCase {
+    
+        @Override
+        protected String prepareMockContextPath() {
+            return ShowbaseBoot.CONTEXT; // basically for swagger
+        }
+    
+        public void test_document() throws Exception {
+            saveLastaDocMeta();
+        }
+    
+        public void test_swaggerJson() throws Exception {
+            saveSwaggerMeta(new SwaggerAction());
+        }
+    }
+     */
+
     // ===================================================================================
     //                                                                            Generate
     //                                                                            ========
+    /**
+     * Generate swagger map. (no option)
+     * @return The map of swagger information. (NotNull)
+     */
+    public Map<String, Object> generateSwaggerMap() {
+        return generateSwaggerMap(op -> {});
+    }
+
+    /**
+     * Generate swagger map with option.
+     * <pre>
+     * new SwaggerGenerator().generateSwaggerMap(op -&gt; {
+     *     op.deriveBasePath(basePath -&gt; basePath + "api/");
+     * });
+     * </pre>
+     * @param opLambda The callback for settings of option. (NotNull)
+     * @return The map of swagger information. (NotNull)
+     */
+    public Map<String, Object> generateSwaggerMap(Consumer<SwaggerOption> opLambda) {
+        OptionalThing<Map<String, Object>> swaggerJson = readSwaggerJson();
+        if (swaggerJson.isPresent()) {
+            return swaggerJson.get();
+        }
+        SwaggerOption swaggerOption = new SwaggerOption();
+        opLambda.accept(swaggerOption);
+        Map<String, Object> swaggerMap = createSwaggerMap(swaggerOption);
+        return swaggerMap;
+    }
+
+    // ===================================================================================
+    //                                                                               Save
+    //                                                                              ======
     public void saveSwaggerMeta(LaActionSwaggerable swaggerable) {
         final String json = createJsonParser().toJson(swaggerable.json().getJsonResult());
 
@@ -98,24 +182,9 @@ public class SwaggerGenerator {
         }
     }
 
-    public Map<String, Object> generateSwaggerMap() {
-        return generateSwaggerMap(op -> {});
-    }
-
-    public Map<String, Object> generateSwaggerMap(Consumer<SwaggerOption> opLampbda) {
-        OptionalThing<Map<String, Object>> swaggerJson = readSwaggerJson();
-        if (swaggerJson.isPresent()) {
-            return swaggerJson.get();
-        }
-        SwaggerOption swaggerOption = new SwaggerOption();
-        opLampbda.accept(swaggerOption);
-        Map<String, Object> swaggerMap = createSwaggerMap(swaggerOption);
-        return swaggerMap;
-    }
-
     // ===================================================================================
-    //                                                                         Swagger Map
-    //                                                                         ===========
+    //                                                                   Read swagger.json
+    //                                                                   =================
     protected OptionalThing<Map<String, Object>> readSwaggerJson() {
         String swaggerJsonFilePath = "./swagger.json";
         if (!DfResourceUtil.isExist(swaggerJsonFilePath)) {
@@ -126,9 +195,8 @@ public class SwaggerGenerator {
                 InputStreamReader inputStreamReader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
                 BufferedReader bufferedReader = new BufferedReader(inputStreamReader)) {
             String json = DfResourceUtil.readText(bufferedReader);
-            return OptionalThing
-                    .of(getJsonManager().fromJsonParameteried(json, new ParameterizedRef<Map<String, Object>>() {
-                    }.getType()));
+            return OptionalThing.of(getJsonManager().fromJsonParameteried(json, new ParameterizedRef<Map<String, Object>>() {
+            }.getType()));
         } catch (IOException e) {
             throw new IllegalStateException("Failed to read the json to the file: " + swaggerJsonFilePath, e);
         }
@@ -146,7 +214,7 @@ public class SwaggerGenerator {
         swaggerMap.put("tags", swaggerTagList);
 
         swaggerOption.getHeaderParameterList().ifPresent(headerParameterList -> {
-            adaptHeaderParameters(swaggerMap, headerParameterList);    
+            adaptHeaderParameters(swaggerMap, headerParameterList);
         });
         swaggerOption.getSecurityDefinitionList().ifPresent(securityDefinitionList -> {
             adaptSecurityDefinitions(swaggerMap, securityDefinitionList);
@@ -256,8 +324,8 @@ public class SwaggerGenerator {
             }).collect(Collectors.toMap(key -> key.get("name"), value -> value, (u, v) -> v, LinkedHashMap::new)));
             swaggerDefinitionsMap.put(derivedDefinitionName(actiondocMeta.getReturnTypeDocMeta()), schema);
 
-            responseMap.put("200", DfCollectionUtil.newLinkedHashMap("description", "success", "schema",
-                    DfCollectionUtil.newLinkedHashMap("$ref", "#/definitions/" + derivedDefinitionName(actiondocMeta.getReturnTypeDocMeta()))));
+            responseMap.put("200", DfCollectionUtil.newLinkedHashMap("description", "success", "schema", DfCollectionUtil
+                    .newLinkedHashMap("$ref", "#/definitions/" + derivedDefinitionName(actiondocMeta.getReturnTypeDocMeta()))));
             responseMap.put("400", DfCollectionUtil.newLinkedHashMap("description", "client error"));
         });
     }
@@ -358,7 +426,7 @@ public class SwaggerGenerator {
             return typeDocMeta.getGenericType().getName();
         } else {
             if (typeDocMeta.getTypeName().matches("^[^<]+<(.+)>$")) {
-                return typeDocMeta.getTypeName().replaceAll("^[^<]+<(.+)>$", "$1");    
+                return typeDocMeta.getTypeName().replaceAll("^[^<]+<(.+)>$", "$1");
             }
             return typeDocMeta.getTypeName();
         }
@@ -382,12 +450,12 @@ public class SwaggerGenerator {
         typeMap.put(String.class, Tuple3.tuple3("string", null, value -> value));
         typeMap.put(byte[].class, Tuple3.tuple3("string", "byte", value -> value));
         typeMap.put(Boolean.class, Tuple3.tuple3("boolean", null, value -> DfTypeUtil.toBoolean(value)));
-        typeMap.put(LocalDate.class, Tuple3.tuple3("string", "date",
-                value -> value == null ? getLocalDateFormatter().format(getDefaultLocalDate()) : value));
+        typeMap.put(LocalDate.class,
+                Tuple3.tuple3("string", "date", value -> value == null ? getLocalDateFormatter().format(getDefaultLocalDate()) : value));
         typeMap.put(LocalDateTime.class, Tuple3.tuple3("string", "date-time",
                 value -> value == null ? getLocalDateTimeFormatter().format(getDefaultLocalDateTime()) : value));
-        typeMap.put(LocalTime.class, Tuple3.tuple3("string", null,
-                value -> value == null ? getLocalTimeFormatter().format(getDefaultLocalTime()) : value));
+        typeMap.put(LocalTime.class,
+                Tuple3.tuple3("string", null, value -> value == null ? getLocalTimeFormatter().format(getDefaultLocalTime()) : value));
         typeMap.put(int.class, Tuple3.tuple3("integer", "int32", value -> DfTypeUtil.toInteger(value)));
         typeMap.put(long.class, Tuple3.tuple3("integer", "int64", value -> DfTypeUtil.toLong(value)));
         typeMap.put(float.class, Tuple3.tuple3("integer", "float", value -> DfTypeUtil.toFloat(value)));
@@ -472,9 +540,11 @@ public class SwaggerGenerator {
         TimeManager timeManager = getTimeManager();
         return timeManager.currentDate();
     }
+
     protected LocalDateTime getDefaultLocalDateTime() {
         return getDefaultLocalDate().atStartOfDay();
     }
+
     protected LocalTime getDefaultLocalTime() {
         return LocalTime.from(getDefaultLocalDateTime());
     }
