@@ -99,12 +99,7 @@ public class SwaggerGenerator {
     }
 
     public Map<String, Object> generateSwaggerMap() {
-        OptionalThing<Map<String, Object>> swaggerJson = readSwaggerJson();
-        if (swaggerJson.isPresent()) {
-            return swaggerJson.get();
-        }
-        Map<String, Object> swaggerMap = createSwaggerMap();
-        return swaggerMap;
+        return generateSwaggerMap(op -> {});
     }
 
     public Map<String, Object> generateSwaggerMap(Consumer<SwaggerOption> op) {
@@ -114,44 +109,13 @@ public class SwaggerGenerator {
         }
         SwaggerOption swaggerOption = new SwaggerOption();
         op.accept(swaggerOption);
-        Map<String, Object> swaggerMap = createSwaggerMap();
-        List<Map<String, Object>> headerParameterList = swaggerOption.getHeaderParameterList();
-        adaptHeaderParameters(swaggerMap, headerParameterList);
-        List<Map<String, Object>> securityDefinitionList = swaggerOption.getSecurityDefinitionList();
-        adaptSecurityDefinitions(swaggerMap, securityDefinitionList);
+        Map<String, Object> swaggerMap = createSwaggerMap(swaggerOption);
         return swaggerMap;
     }
 
     // ===================================================================================
     //                                                                         Swagger Map
     //                                                                         ===========
-    protected Map<String, Object> createSwaggerMap() {
-        Map<String, Object> swaggerMap = DfCollectionUtil.newLinkedHashMap();
-        swaggerMap.put("swagger", "2.0");
-        Map<String, String> swaggerInfoMap = createSwaggerInfoMap();
-        swaggerMap.put("info", swaggerInfoMap);
-        swaggerMap.put("schemes", Arrays.asList(LaRequestUtil.getRequest().getScheme()));
-
-        StringBuilder basePath = new StringBuilder();
-        basePath.append(LaServletContextUtil.getServletContext().getContextPath() + "/");
-        prepareApplicationVersion().ifPresent(applicationVersion -> {
-            basePath.append(applicationVersion + "/");
-        });
-        swaggerMap.put("basePath", basePath.toString());
-
-        List<Map<String, Object>> swaggerTagList = DfCollectionUtil.newArrayList();
-        swaggerMap.put("tags", swaggerTagList);
-
-        Map<String, Map<String, Object>> swaggerPathMap = DfCollectionUtil.newLinkedHashMap();
-        swaggerMap.put("paths", swaggerPathMap);
-
-        Map<String, Map<String, Object>> swaggerDefinitionsMap = DfCollectionUtil.newLinkedHashMap();
-        swaggerMap.put("definitions", swaggerDefinitionsMap);
-
-        createSwaggerPathMap(swaggerTagList, swaggerPathMap, swaggerDefinitionsMap);
-        return swaggerMap;
-    }
-
     protected OptionalThing<Map<String, Object>> readSwaggerJson() {
         String swaggerJsonFilePath = "./swagger.json";
         if (!DfResourceUtil.isExist(swaggerJsonFilePath)) {
@@ -170,6 +134,33 @@ public class SwaggerGenerator {
         }
     }
 
+    protected Map<String, Object> createSwaggerMap(SwaggerOption swaggerOption) {
+        Map<String, Object> swaggerMap = DfCollectionUtil.newLinkedHashMap();
+        swaggerMap.put("swagger", "2.0");
+        Map<String, String> swaggerInfoMap = createSwaggerInfoMap();
+        swaggerMap.put("info", swaggerInfoMap);
+        swaggerMap.put("schemes", Arrays.asList(LaRequestUtil.getRequest().getScheme()));
+        swaggerMap.put("basePath", derivedBasePath(swaggerOption));
+
+        List<Map<String, Object>> swaggerTagList = DfCollectionUtil.newArrayList();
+        swaggerMap.put("tags", swaggerTagList);
+
+        swaggerOption.getHeaderParameterList().ifPresent(headerParameterList -> {
+            adaptHeaderParameters(swaggerMap, headerParameterList);    
+        });
+        swaggerOption.getSecurityDefinitionList().ifPresent(securityDefinitionList -> {
+            adaptSecurityDefinitions(swaggerMap, securityDefinitionList);
+        });
+        Map<String, Map<String, Object>> swaggerPathMap = DfCollectionUtil.newLinkedHashMap();
+        swaggerMap.put("paths", swaggerPathMap);
+
+        Map<String, Map<String, Object>> swaggerDefinitionsMap = DfCollectionUtil.newLinkedHashMap();
+        swaggerMap.put("definitions", swaggerDefinitionsMap);
+
+        createSwaggerPathMap(swaggerTagList, swaggerPathMap, swaggerDefinitionsMap);
+        return swaggerMap;
+    }
+
     protected Map<String, String> createSwaggerInfoMap() {
         Map<String, String> swaggerInfoMap = DfCollectionUtil.newLinkedHashMap();
         String domainName = getAccessibleConfig().get("domain.name");
@@ -177,6 +168,17 @@ public class SwaggerGenerator {
         swaggerInfoMap.put("description", domainName);
         swaggerInfoMap.put("version", "1.0.0");
         return swaggerInfoMap;
+    }
+
+    protected String derivedBasePath(SwaggerOption swaggerOption) {
+        StringBuilder basePath = new StringBuilder();
+        basePath.append(LaServletContextUtil.getServletContext().getContextPath() + "/");
+        prepareApplicationVersion().ifPresent(applicationVersion -> {
+            basePath.append(applicationVersion + "/");
+        });
+        return swaggerOption.getDerivedBasePath().map(derivedBasePath -> {
+            return derivedBasePath.apply(basePath.toString());
+        }).orElse(basePath.toString());
     }
 
     // ===================================================================================
