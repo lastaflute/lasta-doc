@@ -315,6 +315,7 @@ public class SwaggerGenerator {
 
             Map<String, Object> responseMap = DfCollectionUtil.newLinkedHashMap();
             swaggerHttpMethodMap.put("responses", responseMap);
+            swaggerHttpMethodMap.put("produces", derivedProduces(actiondocMeta));
             Map<String, Object> response = DfCollectionUtil.newLinkedHashMap("description", "success");
             if (!actiondocMeta.getReturnTypeDocMeta().getGenericType().equals(Void.class)) {
                 Map<String, Object> parameterMap = createSwaggerParameterMap(actiondocMeta.getReturnTypeDocMeta(), swaggerDefinitionsMap);
