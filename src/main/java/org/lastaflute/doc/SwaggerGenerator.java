@@ -315,17 +315,14 @@ public class SwaggerGenerator {
 
             Map<String, Object> responseMap = DfCollectionUtil.newLinkedHashMap();
             swaggerHttpMethodMap.put("responses", responseMap);
-            swaggerHttpMethodMap.put("produces", derivedProduces(actiondocMeta));
-
-            Map<String, Object> schema = DfCollectionUtil.newLinkedHashMap();
-            schema.put("type", "object");
-            schema.put("properties", actiondocMeta.getReturnTypeDocMeta().getNestTypeDocMetaList().stream().map(typeDocMeta -> {
-                return createSwaggerParameterMap(typeDocMeta, swaggerDefinitionsMap);
-            }).collect(Collectors.toMap(key -> key.get("name"), value -> value, (u, v) -> v, LinkedHashMap::new)));
-            swaggerDefinitionsMap.put(derivedDefinitionName(actiondocMeta.getReturnTypeDocMeta()), schema);
-
-            responseMap.put("200", DfCollectionUtil.newLinkedHashMap("description", "success", "schema", DfCollectionUtil
-                    .newLinkedHashMap("$ref", "#/definitions/" + derivedDefinitionName(actiondocMeta.getReturnTypeDocMeta()))));
+            Map<String, Object> response = DfCollectionUtil.newLinkedHashMap("description", "success");
+            if (!actiondocMeta.getReturnTypeDocMeta().getGenericType().equals(Void.class)) {
+                Map<String, Object> parameterMap = createSwaggerParameterMap(actiondocMeta.getReturnTypeDocMeta(), swaggerDefinitionsMap);
+                parameterMap.remove("name");
+                parameterMap.remove("required");
+                response.putAll(parameterMap);
+            }
+            responseMap.put("200", response);
             responseMap.put("400", DfCollectionUtil.newLinkedHashMap("description", "client error"));
         });
     }
@@ -374,7 +371,7 @@ public class SwaggerGenerator {
                 }
                 swaggerParameterMap.put("items", items);
             }
-        } else if (Map.class.isAssignableFrom(typeDocMeta.getType())) {
+        } else if (typeDocMeta.getType().equals(Object.class) || Map.class.isAssignableFrom(typeDocMeta.getType())) {
             swaggerParameterMap.put("type", "object");
         } else if (!typeDocMeta.getNestTypeDocMetaList().isEmpty()) {
             String definition = putDefinition(definitionsMap, typeDocMeta);
