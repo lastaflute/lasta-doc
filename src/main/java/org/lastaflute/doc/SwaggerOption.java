@@ -15,11 +15,12 @@
  */
 package org.lastaflute.doc;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
+import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 
 /**
@@ -31,19 +32,40 @@ public class SwaggerOption {
     // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
-    protected final List<Map<String, Object>> headerParameterList = new ArrayList<>();
-    protected final List<Map<String, Object>> securityDefinitionList = new ArrayList<>();
+    protected Function<String, String> basePathLambda;
+    protected List<Map<String, Object>> headerParameterList;
+    protected List<Map<String, Object>> securityDefinitionList;
+
+    // ===================================================================================
+    //                                                                               Basic
+    //                                                                               =====
+    /**
+     * Derive application base path (e.g. /showbase/) by filter.
+     * <pre>
+     * op.derivedBasePath(basePath -&gt; basePath + "api/");
+     * </pre>
+     * @param oneArgLambda The callback of base path filter. (NotNull)
+     */
+    public void derivedBasePath(Function<String, String> oneArgLambda) {
+        this.basePathLambda = oneArgLambda;
+    }
 
     // ===================================================================================
     //                                                                    Header Parameter
     //                                                                    ================
     public void addHeaderParameter(String name, String value) {
+        if (headerParameterList == null) {
+            headerParameterList = DfCollectionUtil.newArrayList();
+        }
         headerParameterList.add(createHeaderParameterMap(name, value));
     }
 
     public void addHeaderParameter(String name, String value, Consumer<SwaggerHeaderParameterResource> resourceLambda) {
         final Map<String, Object> parameterMap = createHeaderParameterMap(name, value);
         resourceLambda.accept(new SwaggerHeaderParameterResource(parameterMap));
+        if (headerParameterList == null) {
+            headerParameterList = DfCollectionUtil.newArrayList();
+        }
         headerParameterList.add(parameterMap);
     }
 
@@ -83,12 +105,18 @@ public class SwaggerOption {
     //                                                                 Security Definition
     //                                                                 ===================
     public void addSecurityDefinition(String name) {
+        if (securityDefinitionList == null) {
+            securityDefinitionList = DfCollectionUtil.newArrayList();
+        }
         securityDefinitionList.add(createSecurityDefinitionMap(name));
     }
 
     public void addSecurityDefinition(String name, Consumer<SwaggerSecurityDefinitionResource> resourceLambda) {
         final Map<String, Object> definitionMap = createSecurityDefinitionMap(name);
         resourceLambda.accept(new SwaggerSecurityDefinitionResource(definitionMap));
+        if (securityDefinitionList == null) {
+            securityDefinitionList = DfCollectionUtil.newArrayList();
+        }
         securityDefinitionList.add(definitionMap);
     }
 
@@ -125,11 +153,21 @@ public class SwaggerOption {
     // ===================================================================================
     //                                                                            Accessor
     //                                                                            ========
-    public List<Map<String, Object>> getHeaderParameterList() {
-        return headerParameterList;
+    public OptionalThing<Function<String, String>> getDerivedBasePath() {
+        return OptionalThing.ofNullable(basePathLambda, () -> {
+            throw new IllegalStateException("Not set derivedBasePathLamda.");
+        });
     }
 
-    public List<Map<String, Object>> getSecurityDefinitionList() {
-        return securityDefinitionList;
+    public OptionalThing<List<Map<String, Object>>> getHeaderParameterList() {
+        return OptionalThing.ofNullable(headerParameterList, () -> {
+            throw new IllegalStateException("Not set headerParameterList.");
+        });
+    }
+
+    public OptionalThing<List<Map<String, Object>>> getSecurityDefinitionList() {
+        return OptionalThing.ofNullable(securityDefinitionList, () -> {
+            throw new IllegalStateException("Not set securityDefinitionList.");
+        });
     }
 }

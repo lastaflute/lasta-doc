@@ -28,6 +28,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -298,9 +299,27 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     protected TypeDocMeta analyzeReturnClass(Method method) {
         final TypeDocMeta returnTypeDocMeta = new TypeDocMeta();
         returnTypeDocMeta.setType(method.getReturnType());
+        // TODO p1us2er0 optimisation (2017/09/26)
+        if (method.getGenericReturnType().getTypeName().contains("," )) {
+            returnTypeDocMeta.setGenericType(Object.class);
+        } else {
+            String genericTypeName = method.getGenericReturnType().getTypeName().replaceAll(".*<(.*)>", "$1");
+            try {
+                returnTypeDocMeta.setGenericType(DfReflectionUtil.forName(genericTypeName));
+            } catch (ReflectionFailureException e) {
+                genericTypeName = method.getGenericReturnType().getTypeName().replaceAll(".*<(.*?)<.+", "$1");
+                try {
+                    returnTypeDocMeta.setGenericType(DfReflectionUtil.forName(genericTypeName));
+                } catch (ReflectionFailureException e2) {
+                    returnTypeDocMeta.setGenericType(Object.class);
+                }
+            }
+        }
         returnTypeDocMeta.setTypeName(adjustTypeName(method.getGenericReturnType()));
         returnTypeDocMeta.setSimpleTypeName(adjustSimpleTypeName(method.getGenericReturnType()));
         Class<?> returnClass = DfReflectionUtil.getGenericFirstClass(method.getGenericReturnType());
+        returnTypeDocMeta.setAnnotationTypeList(Collections.emptyList());
+        returnTypeDocMeta.setAnnotationList(Collections.emptyList());
 
         if (returnClass != null) {
             // TODO p1us2er0 optimisation (2015/09/30)
@@ -315,7 +334,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
                 });
             });
 
-            if (List.class.isAssignableFrom(returnClass)) {
+            if (Iterable.class.isAssignableFrom(returnClass)) {
                 String returnClassName = returnTypeDocMeta.getTypeName().replaceAll(JsonResponse.class.getSimpleName() + "<(.*)>", "$1");
                 Matcher matcher = Pattern.compile(".+<([^,]+)>").matcher(returnClassName);
                 if (matcher.matches()) {
@@ -391,12 +410,13 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
             meta.setTypeName(adjustTypeName(typeName) + "<" + adjustTypeName(typeArgumentClass) + ">");
             meta.setSimpleTypeName(adjustSimpleTypeName(typeName) + "<" + adjustSimpleTypeName(typeArgumentClass) + ">");
         } else {
-            if (field.getGenericType().getTypeName().matches(".*\\<(.+)\\>")) {
-                String genericTypeName = field.getGenericType().getTypeName().replaceAll(".*\\<(.+)\\>", "$1");
+            // TODO p1us2er0 optimisation (2017/09/26)
+            if (field.getGenericType().getTypeName().matches(".*<(.*)>")) {
+                String genericTypeName = field.getGenericType().getTypeName().replaceAll(".*<(.*)>", "$1");
                 try {
                     meta.setGenericType(DfReflectionUtil.forName(genericTypeName));
                 } catch (ReflectionFailureException e) {
-                    // ignore
+                    meta.setGenericType(Object.class);
                 }
                 genericClass = genericParameterTypesMap.get(genericTypeName);
                 if (genericClass != null) {
