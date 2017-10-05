@@ -20,6 +20,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.annotation.Annotation;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -40,6 +41,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
 import org.dbflute.jdbc.Classification;
@@ -345,9 +348,10 @@ public class SwaggerGenerator {
         if (DfStringUtil.is_NotNull_and_NotEmpty(typeDocMeta.getDescription())) {
             swaggerParameterMap.put("description", typeDocMeta.getDescription());
         }
-        // TODO p1us2er0 pri.B need to support @NotNull、@NotEmpty (2017/01/10)
-        swaggerParameterMap.put("required",
-                typeDocMeta.getAnnotationTypeList().stream().anyMatch(annotationType -> annotationType instanceof Required));
+        swaggerParameterMap.put("required", typeDocMeta.getAnnotationTypeList().stream().anyMatch(annotationType -> {
+            return getRequiredAnnotationList().stream()
+                    .anyMatch(requiredAnnotation -> requiredAnnotation.isAssignableFrom(annotationType.getClass()));
+        }));
         if (typeMap.containsKey(typeDocMeta.getType())) {
             Tuple3<String, String, Function<Object, Object>> swaggerType = typeMap.get(typeDocMeta.getType());
             swaggerParameterMap.put("type", swaggerType.getValue1());
@@ -467,6 +471,10 @@ public class SwaggerGenerator {
         typeMap.put(LocalTime.class,
                 Tuple3.tuple3("string", null, value -> value == null ? getLocalTimeFormatter().format(getDefaultLocalTime()) : value));
         return typeMap;
+    }
+
+    protected List<Class<? extends Annotation>> getRequiredAnnotationList() {
+        return Arrays.asList(Required.class, NotNull.class, NotEmpty.class);
     }
 
     protected List<String> buildEnumValueList(Class<?> typeClass) {
