@@ -18,6 +18,8 @@ package org.lastaflute.doc.meta;
 import java.util.List;
 import java.util.Map;
 
+import org.lastaflute.core.util.Lato;
+
 /**
  * @author p1us2er0
  * @since 0.6.9 (2075/03/05 Sunday)
@@ -209,5 +211,10 @@ public class JobDocMeta {
 
     public void setMethodLineCount(Integer methodLineCount) {
         this.methodLineCount = methodLineCount;
+    }
+
+    @Override
+    public String toString() {
+        return Lato.string(this);
     }
 }

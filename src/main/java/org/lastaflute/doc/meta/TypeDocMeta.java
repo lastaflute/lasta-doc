@@ -19,6 +19,7 @@ import java.lang.annotation.Annotation;
 import java.util.List;
 
 import org.dbflute.util.DfCollectionUtil;
+import org.lastaflute.core.util.Lato;
 
 /**
  * @author p1us2er0
@@ -141,5 +142,10 @@ public class TypeDocMeta {
 
     public void setNestTypeDocMetaList(List<TypeDocMeta> nestTypeDocMetaList) {
         this.nestTypeDocMetaList = nestTypeDocMetaList;
+    }
+
+    @Override
+    public String toString() {
+        return Lato.string(this);
     }
 }

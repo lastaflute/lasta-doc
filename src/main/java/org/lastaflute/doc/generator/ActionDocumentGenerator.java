@@ -225,13 +225,9 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         actionDocMeta.setAnnotationTypeList(annotationList);
         actionDocMeta.setAnnotationList(analyzeAnnotationList(annotationList));
 
-        List<TypeDocMeta> parameterTypeDocMetaList = DfCollectionUtil.newArrayList();
-        actionDocMeta.setParameterTypeDocMetaList(parameterTypeDocMetaList);
-        Arrays.stream(method.getParameters()).forEach(parameter -> {
-            if (execute.getFormMeta().isPresent() && execute.getFormMeta().get().getFormType().equals(parameter.getType())) {
-                return;
-            }
-
+        List<TypeDocMeta> parameterTypeDocMetaList = Arrays.stream(method.getParameters()).filter(parameter -> {
+            return !(execute.getFormMeta().isPresent() && execute.getFormMeta().get().getFormType().equals(parameter.getType()));
+        }).map(parameter -> {
             final StringBuilder builder = new StringBuilder();
             builder.append("{").append(parameter.getName()).append("}");
             actionDocMeta.setUrl(actionDocMeta.getUrl().replaceFirst("\\{\\}", builder.toString()));
@@ -239,17 +235,22 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
             TypeDocMeta typeDocMeta = new TypeDocMeta();
             typeDocMeta.setName(parameter.getName());
             typeDocMeta.setType(parameter.getType());
+            if (OptionalThing.class.isAssignableFrom(parameter.getType())) {
+                typeDocMeta.setGenericType(DfReflectionUtil.getGenericFirstClass(parameter.getParameterizedType()));
+            }
             typeDocMeta.setTypeName(adjustTypeName(parameter.getParameterizedType()));
             typeDocMeta.setSimpleTypeName(adjustSimpleTypeName(parameter.getParameterizedType()));
-            typeDocMeta.setAnnotationTypeList(Arrays.asList(parameter.getAnnotations()));
+            typeDocMeta.setNestTypeDocMetaList(Collections.emptyList());
+            typeDocMeta.setAnnotationTypeList(Arrays.asList(parameter.getAnnotatedType().getAnnotations()));
             typeDocMeta.setAnnotationList(analyzeAnnotationList(typeDocMeta.getAnnotationTypeList()));
 
             sourceParserReflector.ifPresent(sourceParserReflector -> {
                 sourceParserReflector.reflect(typeDocMeta, parameter.getType());
             });
 
-            parameterTypeDocMetaList.add(typeDocMeta);
-        });
+            return typeDocMeta;
+        }).collect(Collectors.toList());
+        actionDocMeta.setParameterTypeDocMetaList(parameterTypeDocMetaList);
 
         execute.getFormMeta().ifPresent(actionFormMeta -> {
             actionDocMeta.setFormTypeDocMeta(analyzeFormClass(actionFormMeta));
@@ -299,28 +300,13 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     protected TypeDocMeta analyzeReturnClass(Method method) {
         final TypeDocMeta returnTypeDocMeta = new TypeDocMeta();
         returnTypeDocMeta.setType(method.getReturnType());
-        // TODO p1us2er0 optimisation (2017/09/26)
-        if (method.getGenericReturnType().getTypeName().contains("," )) {
-            returnTypeDocMeta.setGenericType(Object.class);
-        } else {
-            String genericTypeName = method.getGenericReturnType().getTypeName().replaceAll(".*<(.*)>", "$1");
-            try {
-                returnTypeDocMeta.setGenericType(DfReflectionUtil.forName(genericTypeName));
-            } catch (ReflectionFailureException e) {
-                genericTypeName = method.getGenericReturnType().getTypeName().replaceAll(".*<(.*?)<.+", "$1");
-                try {
-                    returnTypeDocMeta.setGenericType(DfReflectionUtil.forName(genericTypeName));
-                } catch (ReflectionFailureException e2) {
-                    returnTypeDocMeta.setGenericType(Object.class);
-                }
-            }
-        }
         returnTypeDocMeta.setTypeName(adjustTypeName(method.getGenericReturnType()));
         returnTypeDocMeta.setSimpleTypeName(adjustSimpleTypeName(method.getGenericReturnType()));
-        Class<?> returnClass = DfReflectionUtil.getGenericFirstClass(method.getGenericReturnType());
-        returnTypeDocMeta.setAnnotationTypeList(Collections.emptyList());
-        returnTypeDocMeta.setAnnotationList(Collections.emptyList());
+        returnTypeDocMeta.setGenericType(DfReflectionUtil.getGenericFirstClass(method.getGenericReturnType()));
+        returnTypeDocMeta.setAnnotationTypeList(Arrays.asList(method.getAnnotatedReturnType().getAnnotations()));
+        returnTypeDocMeta.setAnnotationList(analyzeAnnotationList(returnTypeDocMeta.getAnnotationTypeList()));
 
+        Class<?> returnClass = returnTypeDocMeta.getGenericType();
         if (returnClass != null) {
             // TODO p1us2er0 optimisation (2015/09/30)
             final Map<String, Type> genericParameterTypesMap = DfCollectionUtil.newLinkedHashMap();

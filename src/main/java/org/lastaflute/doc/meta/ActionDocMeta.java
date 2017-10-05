@@ -18,6 +18,8 @@ package org.lastaflute.doc.meta;
 import java.lang.annotation.Annotation;
 import java.util.List;
 
+import org.lastaflute.core.util.Lato;
+
 /**
  * @author p1us2er0
  * @since 0.5.0-sp9 (2015/09/18 Friday)
@@ -189,5 +191,10 @@ public class ActionDocMeta {
 
     public void setMethodLineCount(Integer methodLineCount) {
         this.methodLineCount = methodLineCount;
+    }
+
+    @Override
+    public String toString() {
+        return Lato.string(this);
     }
 }
