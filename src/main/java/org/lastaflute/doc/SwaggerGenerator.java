@@ -401,14 +401,16 @@ public class SwaggerGenerator {
                 Class<?> clazz = DfReflectionUtil.forName(typeDocMeta.getTypeName());
                 if (Enum.class.isAssignableFrom(clazz)) {
                     swaggerParameterMap.put("type", "string");
-                    Map<String, String> enumMap = buildEnumMap(clazz);
-                    swaggerParameterMap.put("enum", enumMap.keySet());
+                    @SuppressWarnings("unchecked")
+                    Class<? extends Enum<?>> enumClass = (Class<? extends Enum<?>>) clazz;
+                    List<Map<String, String>> enumMap = buildEnumMapList(enumClass);
+                    swaggerParameterMap.put("enum", enumMap.stream().map(e -> e.get("code")).collect(Collectors.toList()));
                     String description = typeDocMeta.getDescription();
                     if (DfStringUtil.is_Null_or_Empty(description)) {
                         description = typeDocMeta.getName();
                     }
-                    description += ":\n" + enumMap.entrySet().stream().map(enumEntry -> {
-                        return String.format("* `%s` - %s.\n", enumEntry.getKey(), enumEntry.getValue());
+                    description += ":\n" + enumMap.stream().map(e -> {
+                        return String.format("* `%s` - %s, %s.\n", e.get("code"), e.get("name"), e.get("alias"));
                     }).collect(Collectors.joining());
                     swaggerParameterMap.put("description", description);
                 }
@@ -494,22 +496,21 @@ public class SwaggerGenerator {
         return Arrays.asList(Required.class, NotNull.class, NotEmpty.class);
     }
 
-    protected Map<String, String> buildEnumMap(Class<?> typeClass) {
+    protected List<Map<String, String>> buildEnumMapList(Class<? extends Enum<?>> typeClass) {
         // cannot resolve type by maven compiler, explicitly cast it
-        final Map<String, String> enumMap;
-        if (Classification.class.isAssignableFrom(typeClass)) {
-            @SuppressWarnings("unchecked")
-            final Class<Classification> clsType = ((Class<Classification>) typeClass);
-            enumMap = Arrays.stream(clsType.getEnumConstants()).collect(Collectors.toMap(key -> key.code(), value -> {
-                return value.alias();
-            }, (u, v) -> v, LinkedHashMap::new));
-        } else {
-            Enum<?>[] constants = (Enum<?>[]) typeClass.getEnumConstants();
-            enumMap = Arrays.stream(constants).collect(Collectors.toMap(key -> key.name(), value -> {
-                return value.name();
-            }, (u, v) -> v, LinkedHashMap::new));
-        }
-        return enumMap;
+        final List<Map<String, String>>  enumMapList =
+                Arrays.stream(typeClass.getEnumConstants()).map(enumConstant -> {
+                    Map<String, String> map = DfCollectionUtil.newLinkedHashMap("name", enumConstant.name());
+                    if (enumConstant instanceof Classification) {
+                        map.put("code", ((Classification) enumConstant).code());
+                        map.put("alias", ((Classification) enumConstant).alias());
+                    } else {
+                        map.put("code", enumConstant.name());
+                        map.put("alias", "");
+                    }
+                    return map;
+                }).collect(Collectors.toList());
+        return enumMapList;
     }
 
     protected void adaptHeaderParameters(Map<String, Object> swaggerMap, List<Map<String, Object>> headerParameterList) {
@@ -653,8 +654,10 @@ public class SwaggerGenerator {
             if (defaultValue != null) {
                 return OptionalThing.of(defaultValue);
             } else {
-                Map<String, String> enumMap = buildEnumMap(typeDocMeta.getType());
-                return OptionalThing.migratedFrom(enumMap.keySet().stream().map(code -> (Object) code).findFirst(), () -> {
+                @SuppressWarnings("unchecked")
+                Class<? extends Enum<?>> enumClass = (Class<? extends Enum<?>>) typeDocMeta.getType();
+                List<Map<String, String>> enumMapList = buildEnumMapList(enumClass);
+                return OptionalThing.migratedFrom(enumMapList.stream().map(e -> (Object) e.get("code")).findFirst(), () -> {
                     throw new IllegalStateException("not found enum value.");
                 });
             }
