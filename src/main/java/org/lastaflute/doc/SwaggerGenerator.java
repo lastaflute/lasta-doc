@@ -31,6 +31,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -57,7 +58,6 @@ import org.lastaflute.core.direction.AccessibleConfig;
 import org.lastaflute.core.json.JsonManager;
 import org.lastaflute.core.json.SimpleJsonManager;
 import org.lastaflute.core.json.engine.GsonJsonEngine;
-import org.lastaflute.core.time.TimeManager;
 import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.di.helper.misc.ParameterizedRef;
 import org.lastaflute.di.util.tiger.Tuple3;
@@ -300,12 +300,20 @@ public class SwaggerGenerator {
                     schema.put("type", "object");
                     schema.put("properties", actiondocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(typeDocMeta -> {
                         return createSwaggerParameterMap(typeDocMeta, swaggerDefinitionsMap);
-                    }).collect(Collectors.toMap(key -> key.get("name"), value -> value, (u, v) -> v, LinkedHashMap::new)));
+                    }).collect(Collectors.toMap(key -> key.get("name"), value -> {
+                        LinkedHashMap<String, Object> property = DfCollectionUtil.newLinkedHashMap(value);
+                        property.remove("name");
+                        return property;
+                    }, (u, v) -> v, LinkedHashMap::new)));
+
                     swaggerDefinitionsMap.put(derivedDefinitionName(actiondocMeta.getFormTypeDocMeta()), schema);
                     swaggerParameterMap.put("schema", DfCollectionUtil.newLinkedHashMap("$ref",
                             "#/definitions/" + derivedDefinitionName(actiondocMeta.getFormTypeDocMeta())));
                     parameterMapList.add(swaggerParameterMap);
                 }
+            }
+            if (!swaggerHttpMethodMap.containsKey("consumes")) {
+                swaggerHttpMethodMap.put("consumes", Collections.emptyList());
             }
             // Query、Header、Body、Form
 
@@ -393,7 +401,16 @@ public class SwaggerGenerator {
                 Class<?> clazz = DfReflectionUtil.forName(typeDocMeta.getTypeName());
                 if (Enum.class.isAssignableFrom(clazz)) {
                     swaggerParameterMap.put("type", "string");
-                    swaggerParameterMap.put("enum", buildEnumValueList(clazz));
+                    Map<String, String> enumMap = buildEnumMap(clazz);
+                    swaggerParameterMap.put("enum", enumMap.keySet());
+                    String description = typeDocMeta.getDescription();
+                    if (DfStringUtil.is_Null_or_Empty(description)) {
+                        description = typeDocMeta.getName();
+                    }
+                    description += ":\n" + enumMap.entrySet().stream().map(enumEntry -> {
+                        return String.format("* `%s` - %s.\n", enumEntry.getKey(), enumEntry.getValue());
+                    }).collect(Collectors.joining());
+                    swaggerParameterMap.put("description", description);
                 }
             } catch (RuntimeException e) {
                 // ignore
@@ -477,20 +494,22 @@ public class SwaggerGenerator {
         return Arrays.asList(Required.class, NotNull.class, NotEmpty.class);
     }
 
-    protected List<String> buildEnumValueList(Class<?> typeClass) {
+    protected Map<String, String> buildEnumMap(Class<?> typeClass) {
         // cannot resolve type by maven compiler, explicitly cast it
-        final List<String> valueList;
+        final Map<String, String> enumMap;
         if (Classification.class.isAssignableFrom(typeClass)) {
             @SuppressWarnings("unchecked")
             final Class<Classification> clsType = ((Class<Classification>) typeClass);
-            valueList = Arrays.stream(clsType.getEnumConstants()).map(constant -> {
-                return ((Classification) constant).code();
-            }).collect(Collectors.toList());
+            enumMap = Arrays.stream(clsType.getEnumConstants()).collect(Collectors.toMap(key -> key.code(), value -> {
+                return value.alias();
+            }, (u, v) -> v, LinkedHashMap::new));
         } else {
             Enum<?>[] constants = (Enum<?>[]) typeClass.getEnumConstants();
-            valueList = Arrays.stream(constants).map(constant -> constants.toString()).collect(Collectors.toList());
+            enumMap = Arrays.stream(constants).collect(Collectors.toMap(key -> key.name(), value -> {
+                return value.name();
+            }, (u, v) -> v, LinkedHashMap::new));
         }
-        return valueList;
+        return enumMap;
     }
 
     protected void adaptHeaderParameters(Map<String, Object> swaggerMap, List<Map<String, Object>> headerParameterList) {
@@ -551,8 +570,7 @@ public class SwaggerGenerator {
     }
 
     protected LocalDate getDefaultLocalDate() {
-        TimeManager timeManager = getTimeManager();
-        return timeManager.currentDate();
+        return LocalDate.ofYearDay(2000, 1);
     }
 
     protected LocalDateTime getDefaultLocalDateTime() {
@@ -635,10 +653,10 @@ public class SwaggerGenerator {
             if (defaultValue != null) {
                 return OptionalThing.of(defaultValue);
             } else {
-                List<String> enumValueList = buildEnumValueList(typeDocMeta.getType());
-                if (!enumValueList.isEmpty()) {
-                    return OptionalThing.of(enumValueList.get(0));
-                }
+                Map<String, String> enumMap = buildEnumMap(typeDocMeta.getType());
+                return OptionalThing.migratedFrom(enumMap.keySet().stream().map(code -> (Object) code).findFirst(), () -> {
+                    throw new IllegalStateException("not found enum value.");
+                });
             }
         }
         return OptionalThing.empty();
@@ -685,10 +703,6 @@ public class SwaggerGenerator {
     //                                                                           =========
     protected AccessibleConfig getAccessibleConfig() {
         return ContainerUtil.getComponent(AccessibleConfig.class);
-    }
-
-    protected TimeManager getTimeManager() {
-        return ContainerUtil.getComponent(TimeManager.class);
     }
 
     protected JsonManager getJsonManager() {
