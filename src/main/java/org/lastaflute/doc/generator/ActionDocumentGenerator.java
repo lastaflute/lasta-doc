@@ -371,12 +371,33 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         //  JsonResponse<List<Map<String, Object>>> to Map
         final String returnClassName = returnTypeName.replaceAll(JsonResponse.class.getSimpleName() + "<(.*)>", "$1");
         // #pending simple extraction by jflute
-        //if (Srl.containsAll(returnClassName, "<", ">")) {
-        //    return Srl.substringFirstFront(Srl.extractScopeWide(returnClassName, "<", ">").getContent(), "<");
+        //if (Srl.containsAll(returnClassName, "<", ">")) { // e.g. List<String>, List<SeaLandPiari>
+        //    final String extracted = Srl.substringFirstFront(Srl.extractScopeWide(returnClassName, "<", ">").getContent(), "<");
+        //    return resolveIterableElementTypeReflectiveTypeName(extracted);
+        //} else {
+        //    return null;
         //}
         final Matcher matcher = Pattern.compile(".+<([^,]+)>").matcher(returnClassName);
         return matcher.matches() ? matcher.group(1) : null;
     }
+
+    // #pending for java.util.AbstractMap.java.util.AbstractMap$SimpleEntiry
+    //protected String resolveIterableElementTypeReflectiveTypeName(String extracted) {
+    //    if (extracted.contains("$")) { // may be java.util.AbstractMap.java.util.AbstractMap$SimpleEntry
+    //        final String outerExp = Srl.substringFirstFront(extracted, "$");
+    //        if (outerExp.length() % 2 == 1) {
+    //            final int centerIndex = outerExp.length() / 2;
+    //            if (outerExp.substring(centerIndex).startsWith(".")) {
+    //                final String front = outerExp.substring(0, centerIndex);
+    //                final String rear = outerExp.substring(centerIndex + ".".length());
+    //                if (front.equals(rear)) { // yes!
+    //                    return rear + "$" + Srl.substringFirstRear(extracted, "$");
+    //                }
+    //            }
+    //        }
+    //    }
+    //    return extracted;
+    //}
 
     protected List<Class<?>> getNativeClassList() {
         return NATIVE_TYPE_LIST;
