@@ -72,7 +72,7 @@ import com.google.gson.FieldNamingPolicy;
 /**
  * @author p1us2er0
  * @author jflute
- * @since 0.5.0-sp9 (2015/09/18 Friday)
+ * @since 0.5.0-sp9 of UTFlute (2015/09/18 Friday)
  */
 public class ActionDocumentGenerator extends BaseDocumentGenerator {
 
@@ -84,17 +84,19 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     static {
         SUPPRESSED_FIELD_SET = DfCollectionUtil.newHashSet("$jacocoData");
     }
+    protected static final List<Class<?>> NATIVE_TYPE_LIST =
+            Arrays.asList(Void.class, Integer.class, Long.class, Byte.class, String.class, Map.class);
 
     // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
-    /** source directory. (NotNull) */
+    /** The list of source directory. (NotNull) */
     protected final List<String> srcDirList;
 
     /** depth. */
     protected int depth;
 
-    /** sourceParserReflector. */
+    /** The optional reflector of source parser, e.g. java parser. (NotNull, EmptyAllowed) */
     protected final OptionalThing<SourceParserReflector> sourceParserReflector;
 
     // ===================================================================================
@@ -123,18 +125,17 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
                 sourceParserReflector.ifPresent(sourceParserReflector -> {
                     methodList.addAll(sourceParserReflector.getMethodListOrderByDefinition(actionClass));
                 });
-
-                if (methodList.isEmpty()) {
+                if (methodList.isEmpty()) { // no java parser
                     methodList.addAll(Arrays.stream(actionClass.getMethods()).sorted(Comparator.comparing(method -> {
                         return method.getName();
                     })).collect(Collectors.toList()));
                 }
-
                 methodList.forEach(method -> {
                     if (method.getAnnotation(Execute.class) != null) {
-                        ActionExecute actionExecute = actionMapping.getActionExecute(method);
-                        if (actionExecute != null && !suppressActionExecute(actionExecute)) {
-                            metaList.add(createActionDocMeta(actionMapping.getActionExecute(method)));
+                        final ActionExecute actionExecute = actionMapping.getActionExecute(method);
+                        if (actionExecute != null && !exceptsActionExecute(actionExecute)) {
+                            final ActionDocMeta actionDocMeta = createActionDocMeta(actionExecute);
+                            metaList.add(actionDocMeta);
                         }
                     }
                 });
@@ -143,6 +144,14 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         return metaList;
     }
 
+    protected boolean exceptsActionExecute(ActionExecute actionExecute) {
+        if (suppressActionExecute(actionExecute)) { // for compatible
+            return true;
+        }
+        return false;
+    }
+
+    @Deprecated
     protected boolean suppressActionExecute(ActionExecute actionExecute) {
         return false;
     }
@@ -153,35 +162,28 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     protected List<String> findActionComponentNameList() {
         final List<String> componentNameList = DfCollectionUtil.newArrayList();
         final LaContainer container = SingletonLaContainerFactory.getContainer().getRoot();
-
         srcDirList.forEach(srcDir -> {
             if (Paths.get(srcDir).toFile().exists()) {
-                try (Stream<Path> stream = Files.find(Paths.get(srcDir), Integer.MAX_VALUE, (path, attr) -> {
-                    return path.toString().endsWith("Action.java");
-                })) {
-                    stream.forEach(path -> {
-                        String className =
-                                DfStringUtil.substringFirstRear(path.toFile().getAbsolutePath(), new File(srcDir).getAbsolutePath());
-                        if (className.startsWith(File.separator)) {
-                            className = className.substring(1);
-                        }
-                        className = DfStringUtil.substringLastFront(className, ".java").replace(File.separatorChar, '.');
-                        final Class<?> clazz = DfReflectionUtil.forName(className);
-                        if (clazz.isInterface() || Modifier.isAbstract(clazz.getModifiers())) {
-                            return;
-                        }
-
-                        final String componentName = container.getComponentDef(clazz).getComponentName();
-                        if (componentName != null && !componentNameList.contains(componentName)) {
-                            componentNameList.add(componentName);
-                        }
-                    });
-                } catch (IOException e) {
-                    throw new IllegalStateException("Failed to find the components: " + srcDir, e);
-                }
+                return;
+            }
+            try (Stream<Path> stream = Files.find(Paths.get(srcDir), Integer.MAX_VALUE, (path, attr) -> {
+                return path.toString().endsWith("Action.java");
+            })) {
+                stream.forEach(path -> {
+                    final String className = extractActionClassName(path, srcDir);
+                    final Class<?> clazz = DfReflectionUtil.forName(className);
+                    if (clazz.isInterface() || Modifier.isAbstract(clazz.getModifiers())) {
+                        return;
+                    }
+                    final String componentName = container.getComponentDef(clazz).getComponentName();
+                    if (componentName != null && !componentNameList.contains(componentName)) {
+                        componentNameList.add(componentName);
+                    }
+                });
+            } catch (IOException e) {
+                throw new IllegalStateException("Failed to find the components: " + srcDir, e);
             }
         });
-
         IntStream.range(0, container.getComponentDefSize()).forEach(index -> {
             final ComponentDef componentDef = container.getComponentDef(index);
             final String componentName = componentDef.getComponentName();
@@ -192,12 +194,21 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         return componentNameList;
     }
 
+    protected String extractActionClassName(Path path, String srcDir) { // for forName()
+        String className = DfStringUtil.substringFirstRear(path.toFile().getAbsolutePath(), new File(srcDir).getAbsolutePath());
+        if (className.startsWith(File.separator)) {
+            className = className.substring(1);
+        }
+        className = DfStringUtil.substringLastFront(className, ".java").replace(File.separatorChar, '.');
+        return className;
+    }
+
     // -----------------------------------------------------
     //                                      Create ActionDoc
     //                                      ----------------
     protected ActionDocMeta createActionDocMeta(ActionExecute execute) {
-        final Class<?> componentClass = execute.getActionMapping().getActionDef().getComponentClass();
         final ActionDocMeta actionDocMeta = new ActionDocMeta();
+        final Class<?> componentClass = execute.getActionMapping().getActionDef().getComponentClass();
         final UrlChain urlChain = new UrlChain(componentClass);
         final String urlPattern = execute.getPreparedUrlPattern().getResolvedUrlPattern();
         if (!"index".equals(urlPattern)) {
@@ -210,7 +221,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         actionDocMeta.setTypeName(adjustTypeName(method.getDeclaringClass()));
         actionDocMeta.setSimpleTypeName(adjustSimpleTypeName(method.getDeclaringClass()));
         actionDocMeta.setFieldTypeDocMetaList(Arrays.stream(method.getDeclaringClass().getDeclaredFields()).map(field -> {
-            TypeDocMeta typeDocMeta = new TypeDocMeta();
+            final TypeDocMeta typeDocMeta = new TypeDocMeta();
             typeDocMeta.setName(field.getName());
             typeDocMeta.setType(field.getType());
             typeDocMeta.setTypeName(adjustTypeName(field.getGenericType()));
@@ -231,14 +242,14 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         actionDocMeta.setAnnotationTypeList(annotationList);
         actionDocMeta.setAnnotationList(analyzeAnnotationList(annotationList));
 
-        List<TypeDocMeta> parameterTypeDocMetaList = Arrays.stream(method.getParameters()).filter(parameter -> {
+        final List<TypeDocMeta> parameterTypeDocMetaList = Arrays.stream(method.getParameters()).filter(parameter -> {
             return !(execute.getFormMeta().isPresent() && execute.getFormMeta().get().getFormType().equals(parameter.getType()));
         }).map(parameter -> {
             final StringBuilder builder = new StringBuilder();
             builder.append("{").append(parameter.getName()).append("}");
             actionDocMeta.setUrl(actionDocMeta.getUrl().replaceFirst("\\{\\}", builder.toString()));
 
-            TypeDocMeta typeDocMeta = new TypeDocMeta();
+            final TypeDocMeta typeDocMeta = new TypeDocMeta();
             typeDocMeta.setName(parameter.getName());
             typeDocMeta.setType(parameter.getType());
             if (OptionalThing.class.isAssignableFrom(parameter.getType())) {
@@ -364,7 +375,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     }
 
     protected List<Class<?>> getNativeClassList() {
-        return Arrays.asList(Void.class, Integer.class, Long.class, Byte.class, String.class, Map.class);
+        return NATIVE_TYPE_LIST;
     }
 
     // -----------------------------------------------------
@@ -453,11 +464,11 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         if (clazz.getSimpleName().endsWith("Form")) {
             return field.getName();
         }
-        JsonManager jsonManager = ContainerUtil.getComponent(JsonManager.class);
+        final JsonManager jsonManager = ContainerUtil.getComponent(JsonManager.class);
         if (!(jsonManager instanceof SimpleJsonManager)) {
             return field.getName();
         }
-        String fieldName = LaDocReflectionUtil.getNoException(() -> {
+        final String fieldName = LaDocReflectionUtil.getNoException(() -> {
             return ((SimpleJsonManager) jsonManager).getJsonMappingOption().flatMap(jsonMappingOption -> {
                 return jsonMappingOption.getFieldNaming().map(naming -> {
                     if (naming == JsonFieldNaming.IDENTITY) {

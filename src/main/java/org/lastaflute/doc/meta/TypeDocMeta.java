@@ -54,6 +54,14 @@ public class TypeDocMeta {
     private List<TypeDocMeta> nestTypeDocMetaList = DfCollectionUtil.newArrayList();
 
     // ===================================================================================
+    //                                                                      Basic Override
+    //                                                                      ==============
+    @Override
+    public String toString() {
+        return Lato.string(this);
+    }
+
+    // ===================================================================================
     //                                                                            Accessor
     //                                                                            ========
     public String getName() {
@@ -142,10 +150,5 @@ public class TypeDocMeta {
 
     public void setNestTypeDocMetaList(List<TypeDocMeta> nestTypeDocMetaList) {
         this.nestTypeDocMetaList = nestTypeDocMetaList;
-    }
-
-    @Override
-    public String toString() {
-        return Lato.string(this);
     }
 }

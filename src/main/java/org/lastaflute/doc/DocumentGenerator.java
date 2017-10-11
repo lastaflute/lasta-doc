@@ -61,7 +61,7 @@ public class DocumentGenerator {
     /** depth. */
     protected int depth;
 
-    /** sourceParserReflector. */
+    /** The optional reflector of source parser, e.g. java parser. (NotNull, EmptyAllowed) */
     protected final OptionalThing<SourceParserReflector> sourceParserReflector;
 
     /** Does it suppress job document generation? */
