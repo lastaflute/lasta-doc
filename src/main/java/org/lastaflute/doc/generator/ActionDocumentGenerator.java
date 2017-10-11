@@ -46,6 +46,7 @@ import org.dbflute.util.DfCollectionUtil;
 import org.dbflute.util.DfReflectionUtil;
 import org.dbflute.util.DfReflectionUtil.ReflectionFailureException;
 import org.dbflute.util.DfStringUtil;
+import org.dbflute.util.Srl;
 import org.lastaflute.core.json.JsonManager;
 import org.lastaflute.core.json.JsonMappingOption.JsonFieldNaming;
 import org.lastaflute.core.json.SimpleJsonManager;
@@ -163,7 +164,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         final List<String> componentNameList = DfCollectionUtil.newArrayList();
         final LaContainer container = SingletonLaContainerFactory.getContainer().getRoot();
         srcDirList.forEach(srcDir -> {
-            if (Paths.get(srcDir).toFile().exists()) {
+            if (!Paths.get(srcDir).toFile().exists()) {
                 return;
             }
             try (Stream<Path> stream = Files.find(Paths.get(srcDir), Integer.MAX_VALUE, (path, attr) -> {
@@ -370,6 +371,9 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         //  JsonResponse<List<Sea<Land>>> to Sea
         //  JsonResponse<List<Map<String, Object>>> to Map
         final String returnClassName = returnTypeName.replaceAll(JsonResponse.class.getSimpleName() + "<(.*)>", "$1");
+        if (Srl.containsAll(returnClassName, "<", ">")) {
+            return Srl.substringFirstFront(Srl.extractScopeWide(returnClassName, "<", ">").getContent(), "<");
+        }
         final Matcher matcher = Pattern.compile(".+<([^,]+)>").matcher(returnClassName);
         return matcher.matches() ? matcher.group(1) : null;
     }
