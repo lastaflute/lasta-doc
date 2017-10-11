@@ -40,13 +40,13 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import org.dbflute.helper.message.ExceptionMessageBuilder;
 import org.dbflute.jdbc.Classification;
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.dbflute.util.DfReflectionUtil;
 import org.dbflute.util.DfReflectionUtil.ReflectionFailureException;
 import org.dbflute.util.DfStringUtil;
-import org.dbflute.util.Srl;
 import org.lastaflute.core.json.JsonManager;
 import org.lastaflute.core.json.JsonMappingOption.JsonFieldNaming;
 import org.lastaflute.core.json.SimpleJsonManager;
@@ -345,8 +345,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
                     try {
                         returnClass = DfReflectionUtil.forName(genericClassName);
                     } catch (RuntimeException e) { // for matcher debug
-                        String msg = "Not found the generic class: " + genericClassName + " return=" + returnTypeName;
-                        throw new IllegalStateException(msg, e);
+                        throwDocIterableElementTypeNotFoundException(genericClassName, returnTypeName, method, returnTypeDocMeta, e);
                     }
                 }
             }
@@ -371,15 +370,36 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         //  JsonResponse<List<Sea<Land>>> to Sea
         //  JsonResponse<List<Map<String, Object>>> to Map
         final String returnClassName = returnTypeName.replaceAll(JsonResponse.class.getSimpleName() + "<(.*)>", "$1");
-        if (Srl.containsAll(returnClassName, "<", ">")) {
-            return Srl.substringFirstFront(Srl.extractScopeWide(returnClassName, "<", ">").getContent(), "<");
-        }
+        // #pending simple extraction by jflute
+        //if (Srl.containsAll(returnClassName, "<", ">")) {
+        //    return Srl.substringFirstFront(Srl.extractScopeWide(returnClassName, "<", ">").getContent(), "<");
+        //}
         final Matcher matcher = Pattern.compile(".+<([^,]+)>").matcher(returnClassName);
         return matcher.matches() ? matcher.group(1) : null;
     }
 
     protected List<Class<?>> getNativeClassList() {
         return NATIVE_TYPE_LIST;
+    }
+
+    protected void throwDocIterableElementTypeNotFoundException(String genericClassName, String returnTypeName, Method method,
+            TypeDocMeta returnTypeDocMeta, RuntimeException e) {
+        final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
+        br.addNotice("Not found the generic class as iterable element.");
+        br.addItem("Generic Class Name");
+        br.addElement(genericClassName);
+        br.addItem("Return Type Name");
+        br.addElement(returnTypeName);
+        br.addItem("Execute Method");
+        br.addElement(method);
+        br.addItem("Generic Return Type");
+        br.addElement(method.getGenericReturnType());
+        br.addItem("Doc Meta");
+        br.addElement("genericType = " + returnTypeDocMeta.getGenericType());
+        br.addElement("typeName = " + returnTypeDocMeta.getTypeName());
+        br.addElement("simpleTypeName = " + returnTypeDocMeta.getSimpleTypeName());
+        final String msg = br.buildExceptionMessage();
+        throw new IllegalStateException(msg, e);
     }
 
     // -----------------------------------------------------
