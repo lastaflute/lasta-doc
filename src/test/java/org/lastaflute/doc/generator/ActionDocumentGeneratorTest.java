@@ -38,8 +38,8 @@ public class ActionDocumentGeneratorTest extends PlainTestCase {
         // ## Assert ##
         assertEquals("String", generator.extractJsonResponseIterableElementTypeName(prefix + "<List<String>>"));
         assertEquals("SeaLandPiari", generator.extractJsonResponseIterableElementTypeName(prefix + "<List<SeaLandPiari>>"));
-        assertEquals("Sea<Land>", generator.extractJsonResponseIterableElementTypeName(prefix + "<List<Sea<Land>>>"));
-        assertEquals("Map<String, Object>", generator.extractJsonResponseIterableElementTypeName(prefix + "<List<Map<String, Object>>>"));
+        assertEquals("Sea", generator.extractJsonResponseIterableElementTypeName(prefix + "<List<Sea<Land>>>"));
+        assertEquals("Map", generator.extractJsonResponseIterableElementTypeName(prefix + "<List<Map<String, Object>>>"));
     }
 
     // ===================================================================================

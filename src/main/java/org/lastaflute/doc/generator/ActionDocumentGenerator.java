@@ -326,10 +326,10 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
                 });
             });
 
-            if (Iterable.class.isAssignableFrom(returnClass)) {
+            if (Iterable.class.isAssignableFrom(returnClass)) { // e.g. List<String>, List<Sea<Land>>
                 final String returnTypeName = returnTypeDocMeta.getTypeName();
                 final String genericClassName = extractJsonResponseIterableElementTypeName(returnTypeName);
-                if (genericClassName != null) {
+                if (genericClassName != null) { // e.g. String, Sea
                     try {
                         returnClass = DfReflectionUtil.forName(genericClassName);
                     } catch (RuntimeException e) { // for matcher debug
@@ -353,6 +353,11 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     }
 
     protected String extractJsonResponseIterableElementTypeName(String returnTypeName) {
+        // e.g.
+        //  JsonResponse<List<String>> to String
+        //  JsonResponse<List<SeaLandPiari>> to SeaLandPiari
+        //  JsonResponse<List<Sea<Land>>> to Sea
+        //  JsonResponse<List<Map<String, Object>>> to Map
         final String returnClassName = returnTypeName.replaceAll(JsonResponse.class.getSimpleName() + "<(.*)>", "$1");
         final Matcher matcher = Pattern.compile(".+<([^,]+)>").matcher(returnClassName);
         return matcher.matches() ? matcher.group(1) : null;
