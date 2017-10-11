@@ -321,15 +321,21 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
             });
 
             if (Iterable.class.isAssignableFrom(returnClass)) {
-                String returnClassName = returnTypeDocMeta.getTypeName().replaceAll(JsonResponse.class.getSimpleName() + "<(.*)>", "$1");
-                Matcher matcher = Pattern.compile(".+<([^,]+)>").matcher(returnClassName);
+                final String returnClassName = returnTypeDocMeta.getTypeName().replaceAll(JsonResponse.class.getSimpleName() + "<(.*)>", "$1");
+                final Matcher matcher = Pattern.compile(".+<([^,]+)>").matcher(returnClassName);
                 if (matcher.matches()) {
-                    returnClass = DfReflectionUtil.forName(matcher.group(1));
+                    final String genericClassName = matcher.group(1);
+                    try {
+                        returnClass = DfReflectionUtil.forName(genericClassName);
+                    } catch (RuntimeException e) { // for matcher debug
+                        String msg = "Not found the generic class: " + genericClassName + ", return=" + returnClassName;
+                        throw new IllegalStateException(msg, e);
+                    }
                 }
             }
             final List<Class<? extends Object>> nativeClassList = getNativeClassList();
             if (returnClass != null && !nativeClassList.contains(returnClass)) {
-                List<TypeDocMeta> typeDocMeta = prepareTypeDocMetaList(returnClass, genericParameterTypesMap, depth);
+                final List<TypeDocMeta> typeDocMeta = prepareTypeDocMetaList(returnClass, genericParameterTypesMap, depth);
                 returnTypeDocMeta.setNestTypeDocMetaList(typeDocMeta);
             }
 
