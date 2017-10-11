@@ -315,7 +315,7 @@ public class SwaggerGenerator {
             if (!swaggerHttpMethodMap.containsKey("consumes")) {
                 swaggerHttpMethodMap.put("consumes", Collections.emptyList());
             }
-            // Query、Header、Body、Form
+            // Query, Header, Body, Form
 
             swaggerHttpMethodMap.put("parameters", parameterMapList);
             swaggerHttpMethodMap.put("tags",
