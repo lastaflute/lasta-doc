@@ -328,7 +328,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
                     try {
                         returnClass = DfReflectionUtil.forName(genericClassName);
                     } catch (RuntimeException e) { // for matcher debug
-                        String msg = "Not found the generic class: " + genericClassName + ", return=" + returnClassName;
+                        String msg = "Not found the generic class: " + genericClassName + " return=" + returnClassName;
                         throw new IllegalStateException(msg, e);
                     }
                 }
