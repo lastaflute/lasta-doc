@@ -324,7 +324,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         returnTypeDocMeta.setAnnotationList(analyzeAnnotationList(returnTypeDocMeta.getAnnotationTypeList()));
 
         Class<?> returnClass = returnTypeDocMeta.getGenericType();
-        if (returnClass != null) {
+        if (returnClass != null) { // e.g. List<String>, Sea<Land>
             // TODO p1us2er0 optimisation (2015/09/30)
             final Map<String, Type> genericParameterTypesMap = DfCollectionUtil.newLinkedHashMap();
             final Type[] parameterTypes = DfReflectionUtil.getGenericParameterTypes(method.getGenericReturnType());
