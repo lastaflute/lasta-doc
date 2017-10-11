@@ -26,9 +26,12 @@ import org.lastaflute.web.response.JsonResponse;
  */
 public class ActionDocumentGeneratorTest extends PlainTestCase {
 
+    // ===================================================================================
+    //                                                                             Analyze
+    //                                                                             =======
     public void test_extractJsonResponseIterableElementTypeName_basic() {
         // ## Arrange ##
-        ActionDocumentGenerator generator = new ActionDocumentGenerator(Collections.emptyList(), 0, OptionalThing.empty());
+        ActionDocumentGenerator generator = createEmptyGenerator();
         String prefix = JsonResponse.class.getSimpleName();
 
         // ## Act ##
@@ -37,5 +40,12 @@ public class ActionDocumentGeneratorTest extends PlainTestCase {
         assertEquals("SeaLandPiari", generator.extractJsonResponseIterableElementTypeName(prefix + "<List<SeaLandPiari>>"));
         assertEquals("Sea<Land>", generator.extractJsonResponseIterableElementTypeName(prefix + "<List<Sea<Land>>>"));
         assertEquals("Map<String, Object>", generator.extractJsonResponseIterableElementTypeName(prefix + "<List<Map<String, Object>>>"));
+    }
+
+    // ===================================================================================
+    //                                                                        Small Helper
+    //                                                                        ============
+    protected ActionDocumentGenerator createEmptyGenerator() {
+        return new ActionDocumentGenerator(Collections.emptyList(), 0, OptionalThing.empty());
     }
 }
