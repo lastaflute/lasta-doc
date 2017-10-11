@@ -97,12 +97,18 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     /** sourceParserReflector. */
     protected final OptionalThing<SourceParserReflector> sourceParserReflector;
 
+    // ===================================================================================
+    //                                                                         Constructor
+    //                                                                         ===========
     public ActionDocumentGenerator(List<String> srcDirList, int depth, OptionalThing<SourceParserReflector> sourceParserReflector) {
         this.srcDirList = srcDirList;
         this.depth = depth;
         this.sourceParserReflector = sourceParserReflector;
     }
 
+    // ===================================================================================
+    //                                                                            Generate
+    //                                                                            ========
     // -----------------------------------------------------
     //                                    Generate Meta List
     //                                    ------------------
@@ -321,14 +327,13 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
             });
 
             if (Iterable.class.isAssignableFrom(returnClass)) {
-                final String returnClassName = returnTypeDocMeta.getTypeName().replaceAll(JsonResponse.class.getSimpleName() + "<(.*)>", "$1");
-                final Matcher matcher = Pattern.compile(".+<([^,]+)>").matcher(returnClassName);
-                if (matcher.matches()) {
-                    final String genericClassName = matcher.group(1);
+                final String returnTypeName = returnTypeDocMeta.getTypeName();
+                final String genericClassName = extractJsonResponseIterableElementTypeName(returnTypeName);
+                if (genericClassName != null) {
                     try {
                         returnClass = DfReflectionUtil.forName(genericClassName);
                     } catch (RuntimeException e) { // for matcher debug
-                        String msg = "Not found the generic class: " + genericClassName + " return=" + returnClassName;
+                        String msg = "Not found the generic class: " + genericClassName + " return=" + returnTypeName;
                         throw new IllegalStateException(msg, e);
                     }
                 }
@@ -345,6 +350,12 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         }
 
         return returnTypeDocMeta;
+    }
+
+    protected String extractJsonResponseIterableElementTypeName(String returnTypeName) {
+        final String returnClassName = returnTypeName.replaceAll(JsonResponse.class.getSimpleName() + "<(.*)>", "$1");
+        final Matcher matcher = Pattern.compile(".+<([^,]+)>").matcher(returnClassName);
+        return matcher.matches() ? matcher.group(1) : null;
     }
 
     protected List<Class<?>> getNativeClassList() {
