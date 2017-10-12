@@ -277,7 +277,7 @@ public class SwaggerGenerator {
             List<Map<String, Object>> parameterMapList = DfCollectionUtil.newArrayList();
 
             parameterMapList.addAll(actiondocMeta.getParameterTypeDocMetaList().stream().map(typeDocMeta -> {
-                final Map<String, Object> parameterMap = toParameterMap(typeDocMeta, swaggerDefinitionsMap, SchemaStyle.ENCLOSING);
+                final Map<String, Object> parameterMap = toParameterMap(typeDocMeta, swaggerDefinitionsMap);
                 parameterMap.put("in", "path");
                 if (!OptionalThing.class.isAssignableFrom(typeDocMeta.getType())) {
                     parameterMap.put("required", true);
@@ -293,7 +293,7 @@ public class SwaggerGenerator {
                 if (actiondocMeta.getFormTypeDocMeta().getTypeName().endsWith("Form")) {
                     swaggerHttpMethodMap.put("consumes", Arrays.asList("application/x-www-form-urlencoded"));
                     parameterMapList.addAll(actiondocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(typeDocMeta -> {
-                        final Map<String, Object> parameterMap = toParameterMap(typeDocMeta, swaggerDefinitionsMap, SchemaStyle.ENCLOSING);
+                        final Map<String, Object> parameterMap = toParameterMap(typeDocMeta, swaggerDefinitionsMap);
                         parameterMap.put("name", typeDocMeta.getName());
                         parameterMap.put("in", "get".equals(httpMethod) ? "query" : "formData");
                         return parameterMap;
@@ -301,7 +301,7 @@ public class SwaggerGenerator {
                 } else {
                     swaggerHttpMethodMap.put("consumes", Arrays.asList("application/json"));
                     Map<String, Object> parameterMap = DfCollectionUtil.newLinkedHashMap();
-                    parameterMap.put("name", actiondocMeta.getFormTypeDocMeta().getTypeName());
+                    parameterMap.put("name", actiondocMeta.getFormTypeDocMeta().getSimpleTypeName());
                     parameterMap.put("in", "body");
                     parameterMap.put("required", true);
                     Map<String, Object> schema = DfCollectionUtil.newLinkedHashMap();
@@ -311,7 +311,7 @@ public class SwaggerGenerator {
                         schema.put("required", requiredPropertyNameList);
                     }
                     schema.put("properties", actiondocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(typeDocMeta -> {
-                        return toParameterMap(typeDocMeta, swaggerDefinitionsMap, SchemaStyle.ENCLOSING);
+                        return toParameterMap(typeDocMeta, swaggerDefinitionsMap);
                     }).collect(Collectors.toMap(key -> key.get("name"), value -> {
                         LinkedHashMap<String, Object> property = DfCollectionUtil.newLinkedHashMap(value);
                         property.remove("name");
@@ -323,9 +323,6 @@ public class SwaggerGenerator {
                             "#/definitions/" + derivedDefinitionName(actiondocMeta.getFormTypeDocMeta())));
                     parameterMapList.add(parameterMap);
                 }
-            }
-            if (!swaggerHttpMethodMap.containsKey("consumes")) {
-                swaggerHttpMethodMap.put("consumes", Collections.emptyList());
             }
             // Query, Header, Body, Form
 
@@ -339,14 +336,20 @@ public class SwaggerGenerator {
 
             final Map<String, Object> responseMap = DfCollectionUtil.newLinkedHashMap();
             swaggerHttpMethodMap.put("responses", responseMap);
-            swaggerHttpMethodMap.put("produces", derivedProduces(actiondocMeta));
+            derivedProduces(actiondocMeta).ifPresent(produces -> {
+                swaggerHttpMethodMap.put("produces", produces);
+            });
             final Map<String, Object> response = DfCollectionUtil.newLinkedHashMap("description", "success");
             final TypeDocMeta returnTypeDocMeta = actiondocMeta.getReturnTypeDocMeta();
             if (!Arrays.asList(void.class, Void.class).contains(returnTypeDocMeta.getGenericType())) {
-                final Map<String, Object> parameterMap = toParameterMap(returnTypeDocMeta, swaggerDefinitionsMap, SchemaStyle.ENCLOSING);
+                final Map<String, Object> parameterMap = toParameterMap(returnTypeDocMeta, swaggerDefinitionsMap);
                 parameterMap.remove("name");
                 parameterMap.remove("required");
-                response.putAll(parameterMap);
+                if (parameterMap.containsKey("schema")) {
+                    response.putAll(parameterMap);
+                } else {
+                    response.put("schema", parameterMap);
+                }
             }
             responseMap.put("200", response);
             responseMap.put("400", DfCollectionUtil.newLinkedHashMap("description", "client error"));
@@ -356,8 +359,7 @@ public class SwaggerGenerator {
     // ===================================================================================
     //                                                                       Parameter Map
     //                                                                       =============
-    protected Map<String, Object> toParameterMap(TypeDocMeta typeDocMeta, Map<String, Map<String, Object>> definitionsMap,
-            SchemaStyle schemaStyle) {
+    protected Map<String, Object> toParameterMap(TypeDocMeta typeDocMeta, Map<String, Map<String, Object>> definitionsMap) {
         Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> typeMap = createTypeMap();
         Class<?> keepType = typeDocMeta.getType();
         if (typeDocMeta.getGenericType() != null && (ActionResponse.class.isAssignableFrom(typeDocMeta.getType())
@@ -380,15 +382,7 @@ public class SwaggerGenerator {
                 parameterMap.put("format", format);
             }
         } else if (Iterable.class.isAssignableFrom(typeDocMeta.getType())) {
-            if (SchemaStyle.ENCLOSING.equals(schemaStyle)) {
-                final Map<String, Object> schemaMap = DfCollectionUtil.newLinkedHashMap();
-                setupBeanSchema(typeDocMeta, definitionsMap, typeMap, schemaMap);
-                parameterMap.put("schema", schemaMap);
-            } else if (SchemaStyle.FLAT.equals(schemaStyle)) {
-                setupBeanSchema(typeDocMeta, definitionsMap, typeMap, parameterMap);
-            } else {
-                throw new IllegalStateException("Unknown schema enclosing type: " + schemaStyle);
-            }
+            setupBeanList(typeDocMeta, definitionsMap, typeMap, parameterMap);
         } else if (typeDocMeta.getType().equals(Object.class) || Map.class.isAssignableFrom(typeDocMeta.getType())) {
             parameterMap.put("type", "object");
         } else if (!typeDocMeta.getNestTypeDocMetaList().isEmpty()) {
@@ -439,11 +433,7 @@ public class SwaggerGenerator {
         return parameterMap;
     }
 
-    public static enum SchemaStyle {
-        ENCLOSING, FLAT
-    }
-
-    protected void setupBeanSchema(TypeDocMeta typeDocMeta, Map<String, Map<String, Object>> definitionsMap,
+    protected void setupBeanList(TypeDocMeta typeDocMeta, Map<String, Map<String, Object>> definitionsMap,
             Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> typeMap, Map<String, Object> schemaMap) {
         schemaMap.put("type", "array");
         if (!typeDocMeta.getNestTypeDocMetaList().isEmpty()) {
@@ -463,7 +453,7 @@ public class SwaggerGenerator {
                 }
             }
             if (!items.containsKey("type")) {
-                items.put("type", "object");
+                items.put("type", "string");
             }
             schemaMap.put("items", items);
         }
@@ -477,7 +467,7 @@ public class SwaggerGenerator {
             schema.put("required", requiredPropertyNameList);
         }
         schema.put("properties", typeDocMeta.getNestTypeDocMetaList().stream().map(nestTypeDocMeta -> {
-            return toParameterMap(nestTypeDocMeta, definitionsMap, SchemaStyle.FLAT);
+            return toParameterMap(nestTypeDocMeta, definitionsMap);
         }).collect(Collectors.toMap(key -> key.get("name"), value -> {
             // TODO p1us2er0 remove name. refactor required. (2017/10/12)
             LinkedHashMap<String, Object> property = DfCollectionUtil.newLinkedHashMap(value);
@@ -504,16 +494,19 @@ public class SwaggerGenerator {
         return typeDocMeta.getTypeName();
     }
 
-    protected List<String> derivedProduces(ActionDocMeta actiondocMeta) {
+    protected OptionalThing<List<String>> derivedProduces(ActionDocMeta actiondocMeta) {
+        if (Arrays.asList(void.class, Void.class).contains(actiondocMeta.getReturnTypeDocMeta().getGenericType())) {
+            return OptionalThing.empty();
+        }
         if (createTypeMap().containsKey(actiondocMeta.getReturnTypeDocMeta().getGenericType())) {
-            return Arrays.asList("text/plain;charset=UTF-8");
+            return OptionalThing.of(Arrays.asList("text/plain;charset=UTF-8"));
         }
         Map<Class<?>, List<String>> produceMap = DfCollectionUtil.newHashMap();
         produceMap.put(JsonResponse.class, Arrays.asList("application/json"));
         produceMap.put(XmlResponse.class, Arrays.asList("application/xml"));
         produceMap.put(HtmlResponse.class, Arrays.asList("text/html"));
         //produceMap.put(StreamResponse.class, "");
-        return produceMap.get(actiondocMeta.getReturnTypeDocMeta().getType());
+        return OptionalThing.of(produceMap.get(actiondocMeta.getReturnTypeDocMeta().getType()));
     }
 
     protected Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> createTypeMap() {
