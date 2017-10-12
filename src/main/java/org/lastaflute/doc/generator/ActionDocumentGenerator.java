@@ -27,9 +27,13 @@ import java.lang.reflect.TypeVariable;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -84,8 +88,9 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     static {
         SUPPRESSED_FIELD_SET = DfCollectionUtil.newHashSet("$jacocoData");
     }
-    protected static final List<Class<?>> NATIVE_TYPE_LIST =
-            Arrays.asList(Void.class, Integer.class, Long.class, Byte.class, String.class, Map.class);
+    protected static final List<Class<?>> NATIVE_TYPE_LIST = Arrays.asList(void.class, boolean.class, byte.class, int.class, long.class, float.class,
+            double.class, Void.class, Byte.class, Boolean.class, Integer.class, Byte.class, Long.class, Float.class, Double.class, String.class,
+            Map.class, byte[].class, Byte[].class, Date.class, LocalDate.class, LocalDateTime.class, LocalTime.class);
 
     // ===================================================================================
     //                                                                           Attribute

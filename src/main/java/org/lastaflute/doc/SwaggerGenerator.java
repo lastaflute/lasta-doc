@@ -342,7 +342,7 @@ public class SwaggerGenerator {
             swaggerHttpMethodMap.put("produces", derivedProduces(actiondocMeta));
             final Map<String, Object> response = DfCollectionUtil.newLinkedHashMap("description", "success");
             final TypeDocMeta returnTypeDocMeta = actiondocMeta.getReturnTypeDocMeta();
-            if (!Void.class.equals(returnTypeDocMeta.getGenericType())) {
+            if (!Arrays.asList(void.class, Void.class).contains(returnTypeDocMeta.getGenericType())) {
                 final Map<String, Object> parameterMap = toParameterMap(returnTypeDocMeta, swaggerDefinitionsMap, SchemaStyle.ENCLOSING);
                 parameterMap.remove("name");
                 parameterMap.remove("required");
@@ -395,7 +395,6 @@ public class SwaggerGenerator {
             String definition = putDefinition(definitionsMap, typeDocMeta);
             parameterMap.put("schema", DfCollectionUtil.newLinkedHashMap("$ref", definition));
         } else {
-            parameterMap.put("type", "object");
             try {
                 Class<?> clazz = DfReflectionUtil.forName(typeDocMeta.getTypeName());
                 if (Enum.class.isAssignableFrom(clazz)) {
@@ -506,6 +505,9 @@ public class SwaggerGenerator {
     }
 
     protected List<String> derivedProduces(ActionDocMeta actiondocMeta) {
+        if (createTypeMap().containsKey(actiondocMeta.getReturnTypeDocMeta().getGenericType())) {
+            return Arrays.asList("text/plain;charset=UTF-8");
+        }
         Map<Class<?>, List<String>> produceMap = DfCollectionUtil.newHashMap();
         produceMap.put(JsonResponse.class, Arrays.asList("application/json"));
         produceMap.put(XmlResponse.class, Arrays.asList("application/xml"));
@@ -517,17 +519,20 @@ public class SwaggerGenerator {
     protected Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> createTypeMap() {
         Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> typeMap = DfCollectionUtil.newLinkedHashMap();
         typeMap.put(boolean.class, Tuple3.tuple3("boolean", null, value -> DfTypeUtil.toBoolean(value)));
+        typeMap.put(byte.class, Tuple3.tuple3("byte", null, value -> DfTypeUtil.toByte(value)));
         typeMap.put(int.class, Tuple3.tuple3("integer", "int32", value -> DfTypeUtil.toInteger(value)));
         typeMap.put(long.class, Tuple3.tuple3("integer", "int64", value -> DfTypeUtil.toLong(value)));
         typeMap.put(float.class, Tuple3.tuple3("integer", "float", value -> DfTypeUtil.toFloat(value)));
         typeMap.put(double.class, Tuple3.tuple3("integer", "double", value -> DfTypeUtil.toDouble(value)));
         typeMap.put(Boolean.class, Tuple3.tuple3("boolean", null, value -> DfTypeUtil.toBoolean(value)));
+        typeMap.put(Byte.class, Tuple3.tuple3("boolean", null, value -> DfTypeUtil.toByte(value)));
         typeMap.put(Integer.class, Tuple3.tuple3("integer", "int32", value -> DfTypeUtil.toInteger(value)));
         typeMap.put(Long.class, Tuple3.tuple3("integer", "int64", value -> DfTypeUtil.toLong(value)));
         typeMap.put(Float.class, Tuple3.tuple3("integer", "float", value -> DfTypeUtil.toFloat(value)));
         typeMap.put(Double.class, Tuple3.tuple3("integer", "double", value -> DfTypeUtil.toDouble(value)));
         typeMap.put(String.class, Tuple3.tuple3("string", null, value -> value));
         typeMap.put(byte[].class, Tuple3.tuple3("string", "byte", value -> value));
+        typeMap.put(Byte[].class, Tuple3.tuple3("string", "byte", value -> value));
         typeMap.put(Date.class,
                 Tuple3.tuple3("string", "date", value -> value == null ? getLocalDateFormatter().format(getDefaultLocalDate()) : value));
         typeMap.put(LocalDate.class,
