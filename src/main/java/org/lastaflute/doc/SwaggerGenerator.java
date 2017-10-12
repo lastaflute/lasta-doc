@@ -31,7 +31,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -70,6 +69,7 @@ import org.lastaflute.web.response.ActionResponse;
 import org.lastaflute.web.response.HtmlResponse;
 import org.lastaflute.web.response.JsonResponse;
 import org.lastaflute.web.response.XmlResponse;
+import org.lastaflute.web.ruts.multipart.MultipartFormFile;
 import org.lastaflute.web.util.LaRequestUtil;
 import org.lastaflute.web.util.LaServletContextUtil;
 import org.lastaflute.web.validation.Required;
@@ -534,6 +534,7 @@ public class SwaggerGenerator {
                 value -> value == null ? getLocalDateTimeFormatter().format(getDefaultLocalDateTime()) : value));
         typeMap.put(LocalTime.class,
                 Tuple3.tuple3("string", null, value -> value == null ? getLocalTimeFormatter().format(getDefaultLocalTime()) : value));
+        typeMap.put(MultipartFormFile.class, Tuple3.tuple3("file", null, value -> value));
         return typeMap;
     }
 

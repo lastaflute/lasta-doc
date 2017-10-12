@@ -65,6 +65,7 @@ import org.lastaflute.web.path.ActionPathResolver;
 import org.lastaflute.web.ruts.config.ActionExecute;
 import org.lastaflute.web.ruts.config.ActionFormMeta;
 import org.lastaflute.web.ruts.config.ModuleConfig;
+import org.lastaflute.web.ruts.multipart.MultipartFormFile;
 import org.lastaflute.web.util.LaModuleConfigUtil;
 
 import com.google.gson.FieldNamingPolicy;
@@ -87,7 +88,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     }
     protected static final List<Class<?>> NATIVE_TYPE_LIST = Arrays.asList(void.class, boolean.class, byte.class, int.class, long.class, float.class,
             double.class, Void.class, Byte.class, Boolean.class, Integer.class, Byte.class, Long.class, Float.class, Double.class, String.class,
-            Map.class, byte[].class, Byte[].class, Date.class, LocalDate.class, LocalDateTime.class, LocalTime.class);
+            Map.class, byte[].class, Byte[].class, Date.class, LocalDate.class, LocalDateTime.class, LocalTime.class, MultipartFormFile.class);
 
     // ===================================================================================
     //                                                                           Attribute
