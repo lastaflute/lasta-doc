@@ -389,6 +389,7 @@ public class SwaggerGenerator {
             String definition = putDefinition(definitionsMap, typeDocMeta);
             parameterMap.put("schema", DfCollectionUtil.newLinkedHashMap("$ref", definition));
         } else {
+            parameterMap.put("type", "object");
             try {
                 Class<?> clazz = DfReflectionUtil.forName(typeDocMeta.getTypeName());
                 if (Enum.class.isAssignableFrom(clazz)) {
@@ -453,7 +454,7 @@ public class SwaggerGenerator {
                 }
             }
             if (!items.containsKey("type")) {
-                items.put("type", "string");
+                items.put("type", "object");
             }
             schemaMap.put("items", items);
         }
