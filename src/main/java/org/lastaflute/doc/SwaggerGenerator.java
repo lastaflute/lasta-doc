@@ -156,7 +156,9 @@ public class SwaggerGenerator {
     public Map<String, Object> generateSwaggerMap(Consumer<SwaggerOption> opLambda) {
         OptionalThing<Map<String, Object>> swaggerJson = readSwaggerJson();
         if (swaggerJson.isPresent()) {
-            return swaggerJson.get();
+            Map<String, Object> swaggerMap = swaggerJson.get();
+            swaggerMap.put("schemes", Arrays.asList(LaRequestUtil.getRequest().getScheme()));
+            return swaggerMap;
         }
         SwaggerOption swaggerOption = new SwaggerOption();
         opLambda.accept(swaggerOption);
