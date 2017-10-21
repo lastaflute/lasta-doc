@@ -19,6 +19,7 @@ import java.lang.annotation.Annotation;
 import java.util.List;
 
 import org.dbflute.util.DfCollectionUtil;
+import org.lastaflute.core.util.Lato;
 
 /**
  * @author p1us2er0
@@ -51,6 +52,14 @@ public class TypeDocMeta {
     private List<String> annotationList = DfCollectionUtil.newArrayList();
     /** nest meta bean list. */
     private List<TypeDocMeta> nestTypeDocMetaList = DfCollectionUtil.newArrayList();
+
+    // ===================================================================================
+    //                                                                      Basic Override
+    //                                                                      ==============
+    @Override
+    public String toString() {
+        return Lato.string(this);
+    }
 
     // ===================================================================================
     //                                                                            Accessor

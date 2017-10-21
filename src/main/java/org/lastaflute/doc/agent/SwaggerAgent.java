@@ -40,7 +40,7 @@ public class SwaggerAgent {
     public String buildSwaggerUiUrl(String swaggerJsonUrl) {
         final String requestUrl = requestManager.getContextPath() + swaggerJsonUrl;
         return findSwaggerUiVersion().map(version -> {
-            return String.format("../webjars/swagger-ui/%s/index.html?url=%s", version, requestUrl);
+            return String.format("../webjars/swagger-ui/%s/index.html?validatorUrl=&url=%s", version, requestUrl);
         }).orElseTranslatingThrow(cause -> {
             return new IllegalStateException("Not found the Swagger UI dependency in your classpath.", cause);
         });
