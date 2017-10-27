@@ -544,7 +544,7 @@ public class SwaggerGenerator {
                 value -> value == null ? getLocalDateTimeFormatter().format(getDefaultLocalDateTime()) : value));
         typeMap.put(LocalTime.class,
                 Tuple3.tuple3("string", null, value -> value == null ? getLocalTimeFormatter().format(getDefaultLocalTime()) : value));
-        typeMap.put(MultipartFormFile.class, Tuple3.tuple3("file", null, value -> value));
+        typeMap.put(MultipartFormFile.class, Tuple3.tuple3("binary", null, value -> value));
         return typeMap;
     }
 
