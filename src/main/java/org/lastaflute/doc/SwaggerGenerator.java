@@ -211,29 +211,33 @@ public class SwaggerGenerator {
     }
 
     protected Map<String, Object> createSwaggerMap(SwaggerOption swaggerOption) {
-        Map<String, Object> swaggerMap = DfCollectionUtil.newLinkedHashMap();
+        // process order is order in swagger.json is here
+        final Map<String, Object> swaggerMap = DfCollectionUtil.newLinkedHashMap();
         swaggerMap.put("swagger", "2.0");
-        Map<String, String> swaggerInfoMap = createSwaggerInfoMap();
+        final Map<String, String> swaggerInfoMap = createSwaggerInfoMap();
         swaggerMap.put("info", swaggerInfoMap);
         swaggerMap.put("schemes", Arrays.asList(LaRequestUtil.getRequest().getScheme()));
         swaggerMap.put("basePath", derivedBasePath(swaggerOption));
 
-        List<Map<String, Object>> swaggerTagList = DfCollectionUtil.newArrayList();
+        final List<Map<String, Object>> swaggerTagList = DfCollectionUtil.newArrayList();
         swaggerMap.put("tags", swaggerTagList);
 
-        Map<String, Map<String, Object>> swaggerPathMap = DfCollectionUtil.newLinkedHashMap();
+        // security has no constraint of order but should be before paths for swagger.json view
+        swaggerOption.getSecurityDefinitionList().ifPresent(securityDefinitionList -> {
+            adaptSecurityDefinitions(swaggerMap, securityDefinitionList);
+        });
+
+        final Map<String, Map<String, Object>> swaggerPathMap = DfCollectionUtil.newLinkedHashMap();
         swaggerMap.put("paths", swaggerPathMap);
 
-        Map<String, Map<String, Object>> swaggerDefinitionsMap = DfCollectionUtil.newLinkedHashMap();
+        final Map<String, Map<String, Object>> swaggerDefinitionsMap = DfCollectionUtil.newLinkedHashMap();
         swaggerMap.put("definitions", swaggerDefinitionsMap);
 
         setupSwaggerPathMap(swaggerTagList, swaggerPathMap, swaggerDefinitionsMap);
 
-        swaggerOption.getHeaderParameterList().ifPresent(headerParameterList -> { // should be after paths
+        // header is under paths so MUST be after paths setup
+        swaggerOption.getHeaderParameterList().ifPresent(headerParameterList -> {
             adaptHeaderParameters(swaggerMap, headerParameterList); // needs paths in swaggerMap
-        });
-        swaggerOption.getSecurityDefinitionList().ifPresent(securityDefinitionList -> {
-            adaptSecurityDefinitions(swaggerMap, securityDefinitionList);
         });
         return swaggerMap;
     }
@@ -357,6 +361,51 @@ public class SwaggerGenerator {
             }
             responseMap.put("200", response);
             responseMap.put("400", DfCollectionUtil.newLinkedHashMap("description", "client error"));
+        });
+    }
+
+    // ===================================================================================
+    //                                                          Swagger Map Option Element
+    //                                                          ==========================
+    protected void adaptSecurityDefinitions(Map<String, Object> swaggerMap, List<Map<String, Object>> securityDefinitionList) {
+        final Map<Object, Object> securityDefinitions = DfCollectionUtil.newLinkedHashMap();
+        final Map<Object, Object> security = DfCollectionUtil.newLinkedHashMap();
+        swaggerMap.put("securityDefinitions", securityDefinitions);
+        swaggerMap.put("security", security);
+        securityDefinitionList.forEach(securityDefinition -> {
+            securityDefinitions.put(securityDefinition.get("name"), securityDefinition);
+            security.put(securityDefinition.get("name"), Arrays.asList());
+        });
+    }
+
+    protected void adaptHeaderParameters(Map<String, Object> swaggerMap, List<Map<String, Object>> headerParameterList) {
+        if (headerParameterList.isEmpty()) {
+            return;
+        }
+        final Object paths = swaggerMap.get("paths");
+        if (!(paths instanceof Map<?, ?>)) {
+            return;
+        }
+        @SuppressWarnings("unchecked")
+        final Map<Object, Object> pathMap = (Map<Object, Object>) paths;
+        pathMap.forEach((path, pathData) -> {
+            if (!(pathData instanceof Map<?, ?>)) {
+                return;
+            }
+            @SuppressWarnings("unchecked")
+            final Map<Object, Object> pathDataMap = (Map<Object, Object>) pathData;
+
+            headerParameterList.forEach(headerParameter -> {
+                if (!pathDataMap.containsKey("parameters")) {
+                    pathDataMap.put("parameters", DfCollectionUtil.newArrayList());
+                }
+                final Object parameters = pathDataMap.get("parameters");
+                if (parameters instanceof List<?>) {
+                    @SuppressWarnings("all")
+                    final List<Object> parameterList = (List<Object>) parameters;
+                    parameterList.add(headerParameter);
+                }
+            });
         });
     }
 
@@ -566,48 +615,6 @@ public class SwaggerGenerator {
             return map;
         }).collect(Collectors.toList());
         return enumMapList;
-    }
-
-    protected void adaptHeaderParameters(Map<String, Object> swaggerMap, List<Map<String, Object>> headerParameterList) {
-        if (headerParameterList.isEmpty()) {
-            return;
-        }
-        final Object paths = swaggerMap.get("paths");
-        if (!(paths instanceof Map<?, ?>)) {
-            return;
-        }
-        @SuppressWarnings("unchecked")
-        final Map<Object, Object> pathMap = (Map<Object, Object>) paths;
-        pathMap.forEach((path, pathData) -> {
-            if (!(pathData instanceof Map<?, ?>)) {
-                return;
-            }
-            @SuppressWarnings("unchecked")
-            final Map<Object, Object> pathDataMap = (Map<Object, Object>) pathData;
-
-            headerParameterList.forEach(headerParameter -> {
-                if (!pathDataMap.containsKey("parameters")) {
-                    pathDataMap.put("parameters", DfCollectionUtil.newArrayList());
-                }
-                final Object parameters = pathDataMap.get("parameters");
-                if (parameters instanceof List<?>) {
-                    @SuppressWarnings("all")
-                    final List<Object> parameterList = (List<Object>) parameters;
-                    parameterList.add(headerParameter);
-                }
-            });
-        });
-    }
-
-    protected void adaptSecurityDefinitions(Map<String, Object> swaggerMap, List<Map<String, Object>> securityDefinitionList) {
-        final Map<Object, Object> securityDefinitions = DfCollectionUtil.newLinkedHashMap();
-        final Map<Object, Object> security = DfCollectionUtil.newLinkedHashMap();
-        swaggerMap.put("securityDefinitions", securityDefinitions);
-        swaggerMap.put("security", security);
-        securityDefinitionList.forEach(securityDefinition -> {
-            securityDefinitions.put(securityDefinition.get("name"), securityDefinition);
-            security.put(securityDefinition.get("name"), Arrays.asList());
-        });
     }
 
     // ===================================================================================
