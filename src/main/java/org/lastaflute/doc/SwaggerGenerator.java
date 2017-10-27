@@ -84,7 +84,7 @@ public class SwaggerGenerator {
     /* e.g. SwaggerAction implementation
     @AllowAnyoneAccess
     public class SwaggerAction extends FortressBaseAction {
-
+    
         // ===================================================================================
         //                                                                           Attribute
         //                                                                           =========
@@ -92,7 +92,7 @@ public class SwaggerGenerator {
         private RequestManager requestManager;
         @Resource
         private FortressConfig config;
-
+    
         // ===================================================================================
         //                                                                             Execute
         //                                                                             =======
@@ -102,13 +102,13 @@ public class SwaggerGenerator {
             String swaggerJsonUrl = toActionUrl(SwaggerAction.class, moreUrl("json"));
             return new SwaggerAgent(requestManager).prepareSwaggerUiResponse(swaggerJsonUrl);
         }
-
+    
         @Execute
         public JsonResponse<Map<String, Object>> json() {
             verifySwaggerAllowed();
             return asJson(new SwaggerGenerator().generateSwaggerMap());
         }
-
+    
         private void verifySwaggerAllowed() { // also check in ActionAdjustmentProvider
             verifyOrClientError("Swagger is not enabled.", config.isSwaggerEnabled());
         }
@@ -117,16 +117,16 @@ public class SwaggerGenerator {
 
     /* e.g. LastaDocTest implementation
     public class ShowbaseLastaDocTest extends UnitShowbaseTestCase {
-
+    
         @Override
         protected String prepareMockContextPath() {
             return ShowbaseBoot.CONTEXT; // basically for swagger
         }
-
+    
         public void test_document() throws Exception {
             saveLastaDocMeta();
         }
-
+    
         public void test_swaggerJson() throws Exception {
             saveSwaggerMeta(new SwaggerAction());
         }
@@ -221,19 +221,20 @@ public class SwaggerGenerator {
         List<Map<String, Object>> swaggerTagList = DfCollectionUtil.newArrayList();
         swaggerMap.put("tags", swaggerTagList);
 
-        swaggerOption.getHeaderParameterList().ifPresent(headerParameterList -> {
-            adaptHeaderParameters(swaggerMap, headerParameterList);
-        });
-        swaggerOption.getSecurityDefinitionList().ifPresent(securityDefinitionList -> {
-            adaptSecurityDefinitions(swaggerMap, securityDefinitionList);
-        });
         Map<String, Map<String, Object>> swaggerPathMap = DfCollectionUtil.newLinkedHashMap();
         swaggerMap.put("paths", swaggerPathMap);
 
         Map<String, Map<String, Object>> swaggerDefinitionsMap = DfCollectionUtil.newLinkedHashMap();
         swaggerMap.put("definitions", swaggerDefinitionsMap);
 
-        createSwaggerPathMap(swaggerTagList, swaggerPathMap, swaggerDefinitionsMap);
+        setupSwaggerPathMap(swaggerTagList, swaggerPathMap, swaggerDefinitionsMap);
+
+        swaggerOption.getHeaderParameterList().ifPresent(headerParameterList -> { // should be after paths
+            adaptHeaderParameters(swaggerMap, headerParameterList); // needs paths in swaggerMap
+        });
+        swaggerOption.getSecurityDefinitionList().ifPresent(securityDefinitionList -> {
+            adaptSecurityDefinitions(swaggerMap, securityDefinitionList);
+        });
         return swaggerMap;
     }
 
@@ -260,7 +261,7 @@ public class SwaggerGenerator {
     // ===================================================================================
     //                                                                    Swagger Path Map
     //                                                                    ================
-    protected void createSwaggerPathMap(List<Map<String, Object>> swaggerTagList, Map<String, Map<String, Object>> swaggerPathMap,
+    protected void setupSwaggerPathMap(List<Map<String, Object>> swaggerTagList, Map<String, Map<String, Object>> swaggerPathMap,
             Map<String, Map<String, Object>> swaggerDefinitionsMap) {
         createActionDocumentGenerator().generateActionDocMetaList().stream().forEach(actiondocMeta -> {
             if (!swaggerPathMap.containsKey(actiondocMeta.getUrl())) {
