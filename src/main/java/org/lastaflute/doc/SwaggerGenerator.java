@@ -84,7 +84,7 @@ public class SwaggerGenerator {
     /* e.g. SwaggerAction implementation
     @AllowAnyoneAccess
     public class SwaggerAction extends FortressBaseAction {
-    
+
         // ===================================================================================
         //                                                                           Attribute
         //                                                                           =========
@@ -92,7 +92,7 @@ public class SwaggerGenerator {
         private RequestManager requestManager;
         @Resource
         private FortressConfig config;
-    
+
         // ===================================================================================
         //                                                                             Execute
         //                                                                             =======
@@ -102,13 +102,13 @@ public class SwaggerGenerator {
             String swaggerJsonUrl = toActionUrl(SwaggerAction.class, moreUrl("json"));
             return new SwaggerAgent(requestManager).prepareSwaggerUiResponse(swaggerJsonUrl);
         }
-    
+
         @Execute
         public JsonResponse<Map<String, Object>> json() {
             verifySwaggerAllowed();
             return asJson(new SwaggerGenerator().generateSwaggerMap());
         }
-    
+
         private void verifySwaggerAllowed() { // also check in ActionAdjustmentProvider
             verifyOrClientError("Swagger is not enabled.", config.isSwaggerEnabled());
         }
@@ -117,16 +117,16 @@ public class SwaggerGenerator {
 
     /* e.g. LastaDocTest implementation
     public class ShowbaseLastaDocTest extends UnitShowbaseTestCase {
-    
+
         @Override
         protected String prepareMockContextPath() {
             return ShowbaseBoot.CONTEXT; // basically for swagger
         }
-    
+
         public void test_document() throws Exception {
             saveLastaDocMeta();
         }
-    
+
         public void test_swaggerJson() throws Exception {
             saveSwaggerMeta(new SwaggerAction());
         }
@@ -440,7 +440,7 @@ public class SwaggerGenerator {
             parameterMap.put("type", "object");
         } else if (!typeDocMeta.getNestTypeDocMetaList().isEmpty()) {
             String definition = putDefinition(definitionsMap, typeDocMeta);
-            parameterMap.put("schema", DfCollectionUtil.newLinkedHashMap("$ref", definition));
+            parameterMap.put("$ref", definition);
         } else {
             parameterMap.put("type", "object");
             try {
