@@ -32,11 +32,14 @@ public class ActionDocMeta {
     //                                                                           Attribute
     //                                                                           =========
     // -----------------------------------------------------
-    //                                            Basic Meta
-    //                                            ----------
+    //                                           Action Item
+    //                                           -----------
     /** The url of the execute method. e.g. /sea/land/ (NotNull: after setup) */
     private String url;
 
+    // -----------------------------------------------------
+    //                                            Class Item
+    //                                            ----------
     /** The type declaring the execute method. e.g. org.docksidestage.app.web.sea.SeaAction.class (NotNull: after setup) */
     private transient Class<?> type; // #question why transient? by jflute
 
@@ -53,13 +56,13 @@ public class ActionDocMeta {
     private String typeComment; // basically extracted by java parser
 
     // -----------------------------------------------------
-    //                                            Field Meta
+    //                                            Field Item
     //                                            ----------
     /** The list of field meta, in method declaring class. (NotNull: after setup) */
     private List<TypeDocMeta> fieldTypeDocMetaList;
 
     // -----------------------------------------------------
-    //                                           Method Meta
+    //                                           Method Item
     //                                           -----------
     /** The method name of action execute. e.g. org.docksidestage.app.web.sea.SeaAction@land() (NotNull: after setup) */
     private String methodName;
@@ -68,7 +71,7 @@ public class ActionDocMeta {
     private String methodComment; // basically extracted by java parser
 
     // -----------------------------------------------------
-    //                                       Annotation Meta
+    //                                       Annotation Item
     //                                       ---------------
     /** The list of annotation type defined at both action and execute method. (Required) */
     public transient List<Annotation> annotationTypeList; // #question why transient, public? by jflute
@@ -77,7 +80,7 @@ public class ActionDocMeta {
     private List<String> annotationList; // #question what is this? by jflute
 
     // -----------------------------------------------------
-    //                                           IN/OUT Meta
+    //                                           IN/OUT Item
     //                                           -----------
     /** parameter type doc meta list. */
     private List<TypeDocMeta> parameterTypeDocMetaList;
@@ -89,7 +92,7 @@ public class ActionDocMeta {
     private TypeDocMeta returnTypeDocMeta;
 
     // -----------------------------------------------------
-    //                                           Source Meta
+    //                                           Source Item
     //                                           -----------
     /** file line count. */
     private Integer fileLineCount; // basically extracted by java parser
@@ -109,8 +112,8 @@ public class ActionDocMeta {
     //                                                                            Accessor
     //                                                                            ========
     // -----------------------------------------------------
-    //                                            Basic Meta
-    //                                            ----------
+    //                                           Action Item
+    //                                           -----------
     public String getUrl() {
         return url;
     }
@@ -119,6 +122,9 @@ public class ActionDocMeta {
         this.url = url;
     }
 
+    // -----------------------------------------------------
+    //                                            Class Item
+    //                                            ----------
     public Class<?> getType() {
         return type;
     }
@@ -160,7 +166,7 @@ public class ActionDocMeta {
     }
 
     // -----------------------------------------------------
-    //                                            Field Meta
+    //                                            Field Item
     //                                            ----------
     public List<TypeDocMeta> getFieldTypeDocMetaList() {
         return fieldTypeDocMetaList;
@@ -171,7 +177,7 @@ public class ActionDocMeta {
     }
 
     // -----------------------------------------------------
-    //                                           Method Meta
+    //                                           Method Item
     //                                           -----------
     public String getMethodName() {
         return methodName;
@@ -190,7 +196,7 @@ public class ActionDocMeta {
     }
 
     // -----------------------------------------------------
-    //                                       Annotation Meta
+    //                                       Annotation Item
     //                                       ---------------
     public List<Annotation> getAnnotationTypeList() {
         return annotationTypeList;
@@ -209,7 +215,7 @@ public class ActionDocMeta {
     }
 
     // -----------------------------------------------------
-    //                                           IN/OUT Meta
+    //                                           IN/OUT Item
     //                                           -----------
     public List<TypeDocMeta> getParameterTypeDocMetaList() {
         return parameterTypeDocMetaList;
@@ -236,7 +242,7 @@ public class ActionDocMeta {
     }
 
     // -----------------------------------------------------
-    //                                           Source Meta
+    //                                           Source Item
     //                                           -----------
     public Integer getFileLineCount() {
         return fileLineCount;
