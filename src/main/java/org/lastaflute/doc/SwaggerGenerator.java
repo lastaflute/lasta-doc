@@ -81,57 +81,55 @@ import org.lastaflute.web.validation.Required;
  */
 public class SwaggerGenerator {
 
-    /* e.g. SwaggerAction implementation
-    @AllowAnyoneAccess
-    public class SwaggerAction extends FortressBaseAction {
+    // e.g. SwaggerAction implementation
+    //@AllowAnyoneAccess
+    //public class SwaggerAction extends FortressBaseAction {
+    //
+    //    // ===================================================================================
+    //    //                                                                           Attribute
+    //    //                                                                           =========
+    //    @Resource
+    //    private RequestManager requestManager;
+    //    @Resource
+    //    private FortressConfig config;
+    //
+    //    // ===================================================================================
+    //    //                                                                             Execute
+    //    //                                                                             =======
+    //    @Execute
+    //    public HtmlResponse index() {
+    //        verifySwaggerAllowed();
+    //        String swaggerJsonUrl = toActionUrl(SwaggerAction.class, moreUrl("json"));
+    //        return new SwaggerAgent(requestManager).prepareSwaggerUiResponse(swaggerJsonUrl);
+    //    }
+    //
+    //    @Execute
+    //    public JsonResponse<Map<String, Object>> json() {
+    //        verifySwaggerAllowed();
+    //        return asJson(new SwaggerGenerator().generateSwaggerMap());
+    //    }
+    //
+    //    private void verifySwaggerAllowed() { // also check in ActionAdjustmentProvider
+    //        verifyOrClientError("Swagger is not enabled.", config.isSwaggerEnabled());
+    //    }
+    //}
 
-        // ===================================================================================
-        //                                                                           Attribute
-        //                                                                           =========
-        @Resource
-        private RequestManager requestManager;
-        @Resource
-        private FortressConfig config;
-
-        // ===================================================================================
-        //                                                                             Execute
-        //                                                                             =======
-        @Execute
-        public HtmlResponse index() {
-            verifySwaggerAllowed();
-            String swaggerJsonUrl = toActionUrl(SwaggerAction.class, moreUrl("json"));
-            return new SwaggerAgent(requestManager).prepareSwaggerUiResponse(swaggerJsonUrl);
-        }
-
-        @Execute
-        public JsonResponse<Map<String, Object>> json() {
-            verifySwaggerAllowed();
-            return asJson(new SwaggerGenerator().generateSwaggerMap());
-        }
-
-        private void verifySwaggerAllowed() { // also check in ActionAdjustmentProvider
-            verifyOrClientError("Swagger is not enabled.", config.isSwaggerEnabled());
-        }
-    }
-     */
-
-    /* e.g. LastaDocTest implementation
-    public class ShowbaseLastaDocTest extends UnitShowbaseTestCase {
-
-        @Override
-        protected String prepareMockContextPath() {
-            return ShowbaseBoot.CONTEXT; // basically for swagger
-        }
-
-        public void test_document() throws Exception {
-            saveLastaDocMeta();
-        }
-
-        public void test_swaggerJson() throws Exception {
-            saveSwaggerMeta(new SwaggerAction());
-        }
-    }
-     */
+    // e.g. LastaDocTest implementation
+    //public class ShowbaseLastaDocTest extends UnitShowbaseTestCase {
+    //
+    //    @Override
+    //    protected String prepareMockContextPath() {
+    //        return ShowbaseBoot.CONTEXT; // basically for swagger
+    //    }
+    //
+    //    public void test_document() throws Exception {
+    //        saveLastaDocMeta();
+    //    }
+    //
+    //    public void test_swaggerJson() throws Exception {
+    //        saveSwaggerMeta(new SwaggerAction());
+    //    }
+    //}
 
     // ===================================================================================
     //                                                                            Generate
