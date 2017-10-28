@@ -132,8 +132,14 @@ public class SwaggerGenerator {
     //}
 
     // ===================================================================================
+    //                                                                          Definition
+    //                                                                          ==========
+    protected static final Pattern HTTP_METHOD_PATTERN = Pattern.compile("(.+)\\$.+");
+
+    // ===================================================================================
     //                                                                            Generate
     //                                                                            ========
+    // basically called by action
     /**
      * Generate swagger map. (no option)
      * @return The map of swagger information. (NotNull)
@@ -153,21 +159,27 @@ public class SwaggerGenerator {
      * @return The map of swagger information. (NotNull)
      */
     public Map<String, Object> generateSwaggerMap(Consumer<SwaggerOption> opLambda) {
-        OptionalThing<Map<String, Object>> swaggerJson = readSwaggerJson();
-        if (swaggerJson.isPresent()) {
-            Map<String, Object> swaggerMap = swaggerJson.get();
-            swaggerMap.put("schemes", Arrays.asList(LaRequestUtil.getRequest().getScheme()));
+        final OptionalThing<Map<String, Object>> swaggerJson = readSwaggerJson();
+        if (swaggerJson.isPresent()) { // e.g. war world
+            final Map<String, Object> swaggerMap = swaggerJson.get();
+            swaggerMap.put("schemes", prepareSwaggerMapSchemes());
             return swaggerMap;
         }
-        SwaggerOption swaggerOption = new SwaggerOption();
+        // basically here in local development
+        final SwaggerOption swaggerOption = createSwaggerOption(opLambda);
+        return createSwaggerMap(swaggerOption);
+    }
+
+    protected SwaggerOption createSwaggerOption(Consumer<SwaggerOption> opLambda) {
+        final SwaggerOption swaggerOption = new SwaggerOption();
         opLambda.accept(swaggerOption);
-        Map<String, Object> swaggerMap = createSwaggerMap(swaggerOption);
-        return swaggerMap;
+        return swaggerOption;
     }
 
     // ===================================================================================
     //                                                                               Save
     //                                                                              ======
+    // basically called by unit test
     public void saveSwaggerMeta(LaActionSwaggerable swaggerable) {
         final String json = createJsonParser().toJson(swaggerable.json().getJsonResult());
 
@@ -189,9 +201,9 @@ public class SwaggerGenerator {
     }
 
     // ===================================================================================
-    //                                                                   Read swagger.json
-    //                                                                   =================
-    protected OptionalThing<Map<String, Object>> readSwaggerJson() {
+    //                                                                        swagger.json
+    //                                                                        ============
+    protected OptionalThing<Map<String, Object>> readSwaggerJson() { // for war world
         String swaggerJsonFilePath = "./swagger.json";
         if (!DfResourceUtil.isExist(swaggerJsonFilePath)) {
             return OptionalThing.empty();
@@ -208,13 +220,15 @@ public class SwaggerGenerator {
         }
     }
 
+    // ===================================================================================
+    //                                                                         Swagger Map
+    //                                                                         ===========
     protected Map<String, Object> createSwaggerMap(SwaggerOption swaggerOption) {
         // process order is order in swagger.json is here
         final Map<String, Object> swaggerMap = DfCollectionUtil.newLinkedHashMap();
         swaggerMap.put("swagger", "2.0");
-        final Map<String, String> swaggerInfoMap = createSwaggerInfoMap();
-        swaggerMap.put("info", swaggerInfoMap);
-        swaggerMap.put("schemes", Arrays.asList(LaRequestUtil.getRequest().getScheme()));
+        swaggerMap.put("info", createSwaggerInfoMap());
+        swaggerMap.put("schemes", prepareSwaggerMapSchemes());
         swaggerMap.put("basePath", derivedBasePath(swaggerOption));
 
         final List<Map<String, Object>> swaggerTagList = DfCollectionUtil.newArrayList();
@@ -231,7 +245,7 @@ public class SwaggerGenerator {
         final Map<String, Map<String, Object>> swaggerDefinitionsMap = DfCollectionUtil.newLinkedHashMap();
         swaggerMap.put("definitions", swaggerDefinitionsMap);
 
-        setupSwaggerPathMap(swaggerTagList, swaggerPathMap, swaggerDefinitionsMap);
+        setupSwaggerPathMap(swaggerPathMap, swaggerDefinitionsMap, swaggerTagList);
 
         // header is under paths so MUST be after paths setup
         swaggerOption.getHeaderParameterList().ifPresent(headerParameterList -> {
@@ -249,6 +263,10 @@ public class SwaggerGenerator {
         return swaggerInfoMap;
     }
 
+    protected List<String> prepareSwaggerMapSchemes() {
+        return Arrays.asList(LaRequestUtil.getRequest().getScheme());
+    }
+
     protected String derivedBasePath(SwaggerOption swaggerOption) {
         StringBuilder basePath = new StringBuilder();
         basePath.append(LaServletContextUtil.getServletContext().getContextPath() + "/");
@@ -263,103 +281,272 @@ public class SwaggerGenerator {
     // ===================================================================================
     //                                                                    Swagger Path Map
     //                                                                    ================
-    protected void setupSwaggerPathMap(List<Map<String, Object>> swaggerTagList, Map<String, Map<String, Object>> swaggerPathMap,
-            Map<String, Map<String, Object>> swaggerDefinitionsMap) {
+    // e.g. HTML
+    // "/signin/signin": {
+    //   "post": {
+    //     "summary": "@author jflute",
+    //     "description": "@author jflute",
+    //     "consumes": [
+    //       "application/x-www-form-urlencoded"
+    //     ],
+    //     "parameters": [
+    //       {
+    //         "name": "account",
+    //         "type": "string",
+    //         "in": "formData"
+    //       },
+    //       {
+    //         "name": "password",
+    //         "type": "string",
+    //         "in": "formData"
+    //       },
+    //       {
+    //         "name": "rememberMe",
+    //         "type": "boolean",
+    //         "in": "formData"
+    //       }
+    //     ],
+    //     "tags": [
+    //       "signin"
+    //     ],
+    //     "responses": {
+    //       "200": {
+    //         "description": "success",
+    //         "schema": {
+    //           "type": "object"
+    //         }
+    //       },
+    //       "400": {
+    //         "description": "client error"
+    //       }
+    //     },
+    //     "produces": [
+    //       "text/html"
+    //     ]
+    //   },
+    //   "parameters": [
+    //     {
+    //       "in": "header",
+    //       "type": "string",
+    //       "required": true,
+    //       "name": "hangar",
+    //       "default": "mystic"
+    //     }
+    //   ]
+    // },
+    //
+    // e.g. JSON
+    // "/signin/": {
+    //   "post": {
+    //     "summary": "@author jflute",
+    //     "description": "@author jflute",
+    //     "consumes": [
+    //       "application/json"
+    //     ],
+    //     "parameters": [
+    //       {
+    //         "name": "SigninBody",
+    //         "in": "body",
+    //         "required": true,
+    //         "schema": {
+    //           "$ref": "#/definitions/org.docksidestage.app.web.signin.SigninBody"
+    //         }
+    //       }
+    //     ],
+    //     "tags": [
+    //       "signin"
+    //     ],
+    //     "responses": {
+    //       "200": {
+    //         "description": "success",
+    //         "schema": {
+    //           "$ref": "#/definitions/org.docksidestage.app.web.signin.SigninResult"
+    //         }
+    //       },
+    //       "400": {
+    //         "description": "client error"
+    //       }
+    //     },
+    //     "produces": [
+    //       "application/json"
+    //     ]
+    //   }
+    // },
+    //
+    protected void setupSwaggerPathMap(Map<String, Map<String, Object>> swaggerPathMap // map of top-level paths 
+            , Map<String, Map<String, Object>> swaggerDefinitionsMap // map of top-level definitions
+            , List<Map<String, Object>> swaggerTagList) { // top-level tags
         createActionDocumentGenerator().generateActionDocMetaList().stream().forEach(actiondocMeta -> {
-            if (!swaggerPathMap.containsKey(actiondocMeta.getUrl())) {
-                Map<String, Object> swaggerUrlMap = DfCollectionUtil.newLinkedHashMap();
-                swaggerPathMap.put(actiondocMeta.getUrl(), swaggerUrlMap);
-            }
-            Map<String, Object> swaggerUrlMap = swaggerPathMap.get(actiondocMeta.getUrl());
-            Map<String, Object> swaggerHttpMethodMap = DfCollectionUtil.newLinkedHashMap();
-            Pattern pattern = Pattern.compile("(.+)\\$.+");
-            Matcher matcher = pattern.matcher(actiondocMeta.getMethodName());
-            String httpMethod = matcher.find() ? matcher.group(1) : "post";
-            swaggerUrlMap.put(httpMethod, swaggerHttpMethodMap);
-
-            swaggerHttpMethodMap.put("summary", actiondocMeta.getDescription());
-            swaggerHttpMethodMap.put("description", actiondocMeta.getDescription());
-
-            List<Map<String, Object>> parameterMapList = DfCollectionUtil.newArrayList();
-
-            parameterMapList.addAll(actiondocMeta.getParameterTypeDocMetaList().stream().map(typeDocMeta -> {
-                final Map<String, Object> parameterMap = toParameterMap(typeDocMeta, swaggerDefinitionsMap);
-                parameterMap.put("in", "path");
-                if (!OptionalThing.class.isAssignableFrom(typeDocMeta.getType())) {
-                    parameterMap.put("required", true);
-                }
-                // TODO p1us2er0 Swagger path parameters are always required. (2017/10/12)
-                // If path parameter is Option, define Path separately.
-                // https://stackoverflow.com/questions/45549663/swagger-schema-error-should-not-have-additional-properties
-                parameterMap.put("required", true);
-                return parameterMap;
-            }).collect(Collectors.toList()));
-
-            if (actiondocMeta.getFormTypeDocMeta() != null) {
-                if (actiondocMeta.getFormTypeDocMeta().getTypeName().endsWith("Form")) {
-                    swaggerHttpMethodMap.put("consumes", Arrays.asList("application/x-www-form-urlencoded"));
-                    parameterMapList.addAll(actiondocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(typeDocMeta -> {
-                        final Map<String, Object> parameterMap = toParameterMap(typeDocMeta, swaggerDefinitionsMap);
-                        parameterMap.put("name", typeDocMeta.getName());
-                        parameterMap.put("in", "get".equals(httpMethod) ? "query" : "formData");
-                        return parameterMap;
-                    }).collect(Collectors.toList()));
-                } else {
-                    swaggerHttpMethodMap.put("consumes", Arrays.asList("application/json"));
-                    Map<String, Object> parameterMap = DfCollectionUtil.newLinkedHashMap();
-                    parameterMap.put("name", actiondocMeta.getFormTypeDocMeta().getSimpleTypeName());
-                    parameterMap.put("in", "body");
-                    parameterMap.put("required", true);
-                    Map<String, Object> schema = DfCollectionUtil.newLinkedHashMap();
-                    schema.put("type", "object");
-                    List<String> requiredPropertyNameList = derivedRequiredPropertyNameList(actiondocMeta.getFormTypeDocMeta());
-                    if (!requiredPropertyNameList.isEmpty()) {
-                        schema.put("required", requiredPropertyNameList);
-                    }
-                    schema.put("properties", actiondocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(typeDocMeta -> {
-                        return toParameterMap(typeDocMeta, swaggerDefinitionsMap);
-                    }).collect(Collectors.toMap(key -> key.get("name"), value -> {
-                        LinkedHashMap<String, Object> property = DfCollectionUtil.newLinkedHashMap(value);
-                        property.remove("name");
-                        return property;
-                    }, (u, v) -> v, LinkedHashMap::new)));
-
-                    swaggerDefinitionsMap.put(derivedDefinitionName(actiondocMeta.getFormTypeDocMeta()), schema);
-                    parameterMap.put("schema", DfCollectionUtil.newLinkedHashMap("$ref",
-                            "#/definitions/" + derivedDefinitionName(actiondocMeta.getFormTypeDocMeta())));
-                    parameterMapList.add(parameterMap);
-                }
-            }
-            // Query, Header, Body, Form
-
-            swaggerHttpMethodMap.put("parameters", parameterMapList);
-            swaggerHttpMethodMap.put("tags",
-                    Arrays.asList(DfStringUtil.substringFirstFront(actiondocMeta.getUrl().replaceAll("^/", ""), "/")));
-            String tag = DfStringUtil.substringFirstFront(actiondocMeta.getUrl().replaceAll("^/", ""), "/");
-            if (swaggerTagList.stream().noneMatch(swaggerTag -> swaggerTag.containsValue(tag))) {
-                swaggerTagList.add(DfCollectionUtil.newLinkedHashMap("name", tag));
-            }
-
-            final Map<String, Object> responseMap = DfCollectionUtil.newLinkedHashMap();
-            swaggerHttpMethodMap.put("responses", responseMap);
-            derivedProduces(actiondocMeta).ifPresent(produces -> {
-                swaggerHttpMethodMap.put("produces", produces);
-            });
-            final Map<String, Object> response = DfCollectionUtil.newLinkedHashMap("description", "success");
-            final TypeDocMeta returnTypeDocMeta = actiondocMeta.getReturnTypeDocMeta();
-            if (!Arrays.asList(void.class, Void.class).contains(returnTypeDocMeta.getGenericType())) {
-                final Map<String, Object> parameterMap = toParameterMap(returnTypeDocMeta, swaggerDefinitionsMap);
-                parameterMap.remove("name");
-                parameterMap.remove("required");
-                if (parameterMap.containsKey("schema")) {
-                    response.putAll(parameterMap);
-                } else {
-                    response.put("schema", parameterMap);
-                }
-            }
-            responseMap.put("200", response);
-            responseMap.put("400", DfCollectionUtil.newLinkedHashMap("description", "client error"));
+            doSetupSwaggerPathMap(swaggerPathMap, swaggerDefinitionsMap, swaggerTagList, actiondocMeta);
         });
+    }
+
+    protected void doSetupSwaggerPathMap(Map<String, Map<String, Object>> swaggerPathMap // map of top-level paths 
+            , Map<String, Map<String, Object>> swaggerDefinitionsMap // map of top-level definitions
+            , List<Map<String, Object>> swaggerTagList // top-level tags
+            , ActionDocMeta actiondocMeta) { // document meta of current action
+        final String actionUrl = actiondocMeta.getUrl();
+
+        // arrange swaggerUrlMap in swaggerPathMap if needs
+        if (!swaggerPathMap.containsKey(actionUrl)) { // first action for the URL
+            final Map<String, Object> swaggerUrlMap = DfCollectionUtil.newLinkedHashMap();
+            swaggerPathMap.put(actionUrl, swaggerUrlMap);
+        }
+
+        // "/signin/": {
+        //   "post": {
+        final String httpMethod = extractHttpMethod(actiondocMeta);
+        final Map<String, Object> swaggerHttpMethodMap = DfCollectionUtil.newLinkedHashMap();
+        {
+            final Map<String, Object> swaggerUrlMap = swaggerPathMap.get(actionUrl);
+            swaggerUrlMap.put(httpMethod, swaggerHttpMethodMap);
+        }
+
+        //     "summary": "@author jflute",
+        //     "description": "@author jflute",
+        swaggerHttpMethodMap.put("summary", actiondocMeta.getDescription());
+        swaggerHttpMethodMap.put("description", actiondocMeta.getDescription());
+
+        //     "parameters": [
+        //       {
+        //         "name": "SigninBody",
+        //         "in": "body",
+        //         "required": true,
+        //         "schema": {
+        //           "$ref": "#/definitions/org.docksidestage.app.web.signin.SigninBody"
+        //         }
+        //       }
+        //     ],
+        final List<Map<String, Object>> parameterMapList = DfCollectionUtil.newArrayList();
+        parameterMapList.addAll(actiondocMeta.getParameterTypeDocMetaList().stream().map(typeDocMeta -> {
+            final Map<String, Object> parameterMap = toParameterMap(typeDocMeta, swaggerDefinitionsMap);
+            parameterMap.put("in", "path");
+            if (!OptionalThing.class.isAssignableFrom(typeDocMeta.getType())) {
+                parameterMap.put("required", true);
+            }
+            // TODO p1us2er0 Swagger path parameters are always required. (2017/10/12)
+            // If path parameter is Option, define Path separately.
+            // https://stackoverflow.com/questions/45549663/swagger-schema-error-should-not-have-additional-properties
+            parameterMap.put("required", true);
+            return parameterMap;
+        }).collect(Collectors.toList()));
+
+        if (actiondocMeta.getFormTypeDocMeta() != null) {
+            if (actiondocMeta.getFormTypeDocMeta().getTypeName().endsWith("Form")) {
+                //     "consumes": [
+                //       "application/x-www-form-urlencoded"
+                //     ],
+                //     "parameters": [
+                //       {
+                //         "name": "account",
+                //         "type": "string",
+                //         "in": "formData"
+                //       },
+                //       ...
+                //     ],
+                swaggerHttpMethodMap.put("consumes", Arrays.asList("application/x-www-form-urlencoded"));
+                parameterMapList.addAll(actiondocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(typeDocMeta -> {
+                    final Map<String, Object> parameterMap = toParameterMap(typeDocMeta, swaggerDefinitionsMap);
+                    parameterMap.put("name", typeDocMeta.getName());
+                    parameterMap.put("in", "get".equals(httpMethod) ? "query" : "formData");
+                    return parameterMap;
+                }).collect(Collectors.toList()));
+            } else {
+                //     "consumes": [
+                //       "application/json"
+                //     ],
+                swaggerHttpMethodMap.put("consumes", Arrays.asList("application/json"));
+                final Map<String, Object> parameterMap = DfCollectionUtil.newLinkedHashMap();
+                parameterMap.put("name", actiondocMeta.getFormTypeDocMeta().getSimpleTypeName());
+                parameterMap.put("in", "body");
+                parameterMap.put("required", true);
+                final Map<String, Object> schema = DfCollectionUtil.newLinkedHashMap();
+                schema.put("type", "object");
+                final List<String> requiredPropertyNameList = derivedRequiredPropertyNameList(actiondocMeta.getFormTypeDocMeta());
+                if (!requiredPropertyNameList.isEmpty()) {
+                    schema.put("required", requiredPropertyNameList);
+                }
+                schema.put("properties", actiondocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(typeDocMeta -> {
+                    return toParameterMap(typeDocMeta, swaggerDefinitionsMap);
+                }).collect(Collectors.toMap(key -> key.get("name"), value -> {
+                    final LinkedHashMap<String, Object> property = DfCollectionUtil.newLinkedHashMap(value);
+                    property.remove("name");
+                    return property;
+                }, (u, v) -> v, LinkedHashMap::new)));
+
+                swaggerDefinitionsMap.put(derivedDefinitionName(actiondocMeta.getFormTypeDocMeta()), schema);
+
+                //         "schema": {
+                //           "$ref": "#/definitions/org.docksidestage.app.web.signin.SigninBody"
+                //         }
+                parameterMap.put("schema", DfCollectionUtil.newLinkedHashMap("$ref", prepareSwaggerMapRefDefinitions(actiondocMeta)));
+                parameterMapList.add(parameterMap);
+            }
+        }
+        // Query, Header, Body, Form
+        swaggerHttpMethodMap.put("parameters", parameterMapList);
+
+        //     "tags": [
+        //       "signin"
+        //     ],
+        swaggerHttpMethodMap.put("tags", prepareSwaggerMapTags(actiondocMeta));
+        final String tag = DfStringUtil.substringFirstFront(actionUrl.replaceAll("^/", ""), "/");
+
+        // reflect the tags to top-level tags
+        if (swaggerTagList.stream().noneMatch(swaggerTag -> swaggerTag.containsValue(tag))) {
+            swaggerTagList.add(DfCollectionUtil.newLinkedHashMap("name", tag));
+        }
+
+        //     "responses": {
+        //       ...
+        setupSwaggerResponseMap(swaggerHttpMethodMap, actiondocMeta, swaggerDefinitionsMap);
+    }
+
+    protected String extractHttpMethod(ActionDocMeta actiondocMeta) {
+        final Matcher matcher = HTTP_METHOD_PATTERN.matcher(actiondocMeta.getMethodName());
+        return matcher.find() ? matcher.group(1) : "post";
+    }
+
+    protected String prepareSwaggerMapRefDefinitions(ActionDocMeta actiondocMeta) {
+        return "#/definitions/" + derivedDefinitionName(actiondocMeta.getFormTypeDocMeta());
+    }
+
+    protected List<String> prepareSwaggerMapTags(ActionDocMeta actiondocMeta) {
+        return Arrays.asList(DfStringUtil.substringFirstFront(actiondocMeta.getUrl().replaceAll("^/", ""), "/"));
+    }
+
+    protected void setupSwaggerResponseMap(Map<String, Object> swaggerHttpMethodMap, ActionDocMeta actiondocMeta,
+            Map<String, Map<String, Object>> swaggerDefinitionsMap) {
+        //     "responses": {
+        //       "200": {
+        //         "description": "success",
+        //         "schema": {
+        //           "$ref": "#/definitions/org.docksidestage.app.web.signin.SigninResult"
+        //         }
+        //       },
+        //       "400": {
+        //         "description": "client error"
+        //       }
+        //     },
+        final Map<String, Object> responseMap = DfCollectionUtil.newLinkedHashMap();
+        swaggerHttpMethodMap.put("responses", responseMap);
+        derivedProduces(actiondocMeta).ifPresent(produces -> {
+            swaggerHttpMethodMap.put("produces", produces);
+        });
+        final Map<String, Object> response = DfCollectionUtil.newLinkedHashMap("description", "success");
+        final TypeDocMeta returnTypeDocMeta = actiondocMeta.getReturnTypeDocMeta();
+        if (!Arrays.asList(void.class, Void.class).contains(returnTypeDocMeta.getGenericType())) {
+            final Map<String, Object> parameterMap = toParameterMap(returnTypeDocMeta, swaggerDefinitionsMap);
+            parameterMap.remove("name");
+            parameterMap.remove("required");
+            if (parameterMap.containsKey("schema")) {
+                response.putAll(parameterMap);
+            } else {
+                response.put("schema", parameterMap);
+            }
+        }
+        responseMap.put("200", response);
+        responseMap.put("400", DfCollectionUtil.newLinkedHashMap("description", "client error"));
     }
 
     // ===================================================================================
@@ -411,8 +598,8 @@ public class SwaggerGenerator {
     //                                                                       Parameter Map
     //                                                                       =============
     protected Map<String, Object> toParameterMap(TypeDocMeta typeDocMeta, Map<String, Map<String, Object>> definitionsMap) {
-        Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> typeMap = createTypeMap();
-        Class<?> keepType = typeDocMeta.getType();
+        final Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> typeMap = createTypeMap();
+        final Class<?> keepType = typeDocMeta.getType();
         if (typeDocMeta.getGenericType() != null && (ActionResponse.class.isAssignableFrom(typeDocMeta.getType())
                 || OptionalThing.class.isAssignableFrom(typeDocMeta.getType()))) {
             typeDocMeta.setType(typeDocMeta.getGenericType());
@@ -442,7 +629,7 @@ public class SwaggerGenerator {
         } else {
             parameterMap.put("type", "object");
             try {
-                Class<?> clazz = DfReflectionUtil.forName(typeDocMeta.getTypeName());
+                final Class<?> clazz = DfReflectionUtil.forName(typeDocMeta.getTypeName());
                 if (Enum.class.isAssignableFrom(clazz)) {
                     parameterMap.put("type", "string");
                     @SuppressWarnings("unchecked")
@@ -458,9 +645,7 @@ public class SwaggerGenerator {
                     }).collect(Collectors.joining());
                     parameterMap.put("description", description);
                 }
-            } catch (RuntimeException e) {
-                // ignore
-            }
+            } catch (RuntimeException ignored) {}
         }
 
         typeDocMeta.getAnnotationTypeList().forEach(annotation -> {
@@ -489,7 +674,7 @@ public class SwaggerGenerator {
             Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> typeMap, Map<String, Object> schemaMap) {
         schemaMap.put("type", "array");
         if (!typeDocMeta.getNestTypeDocMetaList().isEmpty()) {
-            String definition = putDefinition(definitionsMap, typeDocMeta);
+            final String definition = putDefinition(definitionsMap, typeDocMeta);
             schemaMap.put("items", DfCollectionUtil.newLinkedHashMap("$ref", definition));
         } else {
             final Map<String, String> items = DfCollectionUtil.newLinkedHashMap();
@@ -512,9 +697,9 @@ public class SwaggerGenerator {
     }
 
     protected String putDefinition(Map<String, Map<String, Object>> definitionsMap, TypeDocMeta typeDocMeta) {
-        Map<String, Object> schema = DfCollectionUtil.newLinkedHashMap();
+        final Map<String, Object> schema = DfCollectionUtil.newLinkedHashMap();
         schema.put("type", "object");
-        List<String> requiredPropertyNameList = derivedRequiredPropertyNameList(typeDocMeta);
+        final List<String> requiredPropertyNameList = derivedRequiredPropertyNameList(typeDocMeta);
         if (!requiredPropertyNameList.isEmpty()) {
             schema.put("required", requiredPropertyNameList);
         }
@@ -522,7 +707,7 @@ public class SwaggerGenerator {
             return toParameterMap(nestTypeDocMeta, definitionsMap);
         }).collect(Collectors.toMap(key -> key.get("name"), value -> {
             // TODO p1us2er0 remove name. refactor required. (2017/10/12)
-            LinkedHashMap<String, Object> property = DfCollectionUtil.newLinkedHashMap(value);
+            final LinkedHashMap<String, Object> property = DfCollectionUtil.newLinkedHashMap(value);
             property.remove("name");
             return property;
         }, (u, v) -> v, LinkedHashMap::new)));
@@ -553,13 +738,13 @@ public class SwaggerGenerator {
         if (createTypeMap().containsKey(actiondocMeta.getReturnTypeDocMeta().getGenericType())) {
             return OptionalThing.of(Arrays.asList("text/plain;charset=UTF-8"));
         }
-        Map<Class<?>, List<String>> produceMap = DfCollectionUtil.newHashMap();
+        final Map<Class<?>, List<String>> produceMap = DfCollectionUtil.newHashMap();
         produceMap.put(JsonResponse.class, Arrays.asList("application/json"));
         produceMap.put(XmlResponse.class, Arrays.asList("application/xml"));
         produceMap.put(HtmlResponse.class, Arrays.asList("text/html"));
         produceMap.put(StreamResponse.class, Arrays.asList("application/octet-stream"));
-        Class<?> produceType = actiondocMeta.getReturnTypeDocMeta().getType();
-        List<String> produceList = produceMap.get(produceType);
+        final Class<?> produceType = actiondocMeta.getReturnTypeDocMeta().getType();
+        final List<String> produceList = produceMap.get(produceType);
         return OptionalThing.ofNullable(produceList, () -> {
             String msg = "Not found the produce: type=" + produceType + ", keys=" + produceMap.keySet();
             throw new IllegalStateException(msg);
@@ -567,7 +752,7 @@ public class SwaggerGenerator {
     }
 
     protected Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> createTypeMap() {
-        Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> typeMap = DfCollectionUtil.newLinkedHashMap();
+        final Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> typeMap = DfCollectionUtil.newLinkedHashMap();
         typeMap.put(boolean.class, Tuple3.tuple3("boolean", null, value -> DfTypeUtil.toBoolean(value)));
         typeMap.put(byte.class, Tuple3.tuple3("byte", null, value -> DfTypeUtil.toByte(value)));
         typeMap.put(int.class, Tuple3.tuple3("integer", "int32", value -> DfTypeUtil.toInteger(value)));
