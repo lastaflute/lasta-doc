@@ -499,7 +499,7 @@ public class SwaggerGenerator {
 
         //     "responses": {
         //       ...
-        setupSwaggerResponseMap(swaggerHttpMethodMap, actiondocMeta, swaggerDefinitionsMap);
+        prepareSwaggerMapResponseMap(swaggerHttpMethodMap, actiondocMeta, swaggerDefinitionsMap);
     }
 
     protected String extractHttpMethod(ActionDocMeta actiondocMeta) {
@@ -515,7 +515,7 @@ public class SwaggerGenerator {
         return Arrays.asList(DfStringUtil.substringFirstFront(actiondocMeta.getUrl().replaceAll("^/", ""), "/"));
     }
 
-    protected void setupSwaggerResponseMap(Map<String, Object> swaggerHttpMethodMap, ActionDocMeta actiondocMeta,
+    protected void prepareSwaggerMapResponseMap(Map<String, Object> swaggerHttpMethodMap, ActionDocMeta actiondocMeta,
             Map<String, Map<String, Object>> swaggerDefinitionsMap) {
         //     "responses": {
         //       "200": {
