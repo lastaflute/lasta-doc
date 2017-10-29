@@ -301,7 +301,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
 
         Class<?> returnClass = returnDocMeta.getGenericType();
         if (returnClass != null) { // e.g. List<String>, Sea<Land>
-            // TODO p1us2er0 optimisation (2015/09/30)
+            // TODO p1us2er0 optimisation, generic handling in analyzeReturnClass() (2015/09/30)
             final Map<String, Type> genericParameterTypesMap = DfCollectionUtil.newLinkedHashMap();
             final Type[] parameterTypes = DfReflectionUtil.getGenericParameterTypes(method.getGenericReturnType());
             final TypeVariable<?>[] typeVariables = returnClass.getTypeParameters();
@@ -403,11 +403,11 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         if (isTargetSuffixResolvedClass(resolvedClass)) { // nested bean of direct type as top or inner class
             // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
             // e.g.
-            //  public SeaResult sea; // current field
+            //  public SeaResult sea; // current field, the outer type should have suffix
             //
             //   or
             //
-            //  public class SeaResult {
+            //  public class SeaResult { // the declaring class should have suffix
             //      public HangarPart hangar; // current field
             //      public static class HangarPart {
             //          ...
@@ -418,11 +418,11 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         } else if (isTargetSuffixFieldGeneric(field)) { // nested bean of generic type as top or inner class
             // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
             // e.g.
-            //  public List<SeaResult> seaList; // current field
+            //  public List<SeaResult> seaList; // current field, the outer type should have suffix
             //
             //   or
             //
-            //  public class SeaResult {
+            //  public class SeaResult { // the declaring class should have suffix
             //      public List<HangarPart> hangarList; // current field
             //      public static class HangarPart {
             //          ...
@@ -437,19 +437,19 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
             meta.setTypeName(adjustTypeName(currentTypeName) + "<" + adjustTypeName(typeArgumentClass) + ">");
             meta.setSimpleTypeName(adjustSimpleTypeName(currentTypeName) + "<" + adjustSimpleTypeName(typeArgumentClass) + ">");
         } else { // e.g. String, Integer, LocalDate, Sea<Mystic>
-            // TODO p1us2er0 optimisation (2017/09/26)
+            // TODO p1us2er0 optimisation, generic handling in analyzePropertyField() (2017/09/26)
             if (field.getGenericType().getTypeName().matches(".*<(.*)>")) { // e.g. Sea<Mystic>
                 final String genericTypeName = field.getGenericType().getTypeName().replaceAll(".*<(.*)>", "$1");
 
                 // generic item
                 try {
                     meta.setGenericType(DfReflectionUtil.forName(genericTypeName));
-                } catch (ReflectionFailureException ignored) {
+                } catch (ReflectionFailureException ignored) { // e.g. BEAN (generic parameter name)
                     meta.setGenericType(Object.class); // unknown
                 }
 
                 final Type genericClass = genericParameterTypesMap.get(genericTypeName);
-                if (genericClass != null) {
+                if (genericClass != null) { // the generic is defined at top definition (e.g. return)
                     meta.setNestTypeDocMetaList(analyzeProperties((Class<?>) genericClass, genericParameterTypesMap, depth - 1));
 
                     // overriding type names that are already set before
@@ -494,9 +494,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     }
 
     protected boolean isTargetSuffixResolvedClass(Class<?> resolvedClass) {
-        // #question suffix but contains? by jflute
-        // certainly true if AllSuffixResult$ResortParkPart
-        // but Integer purchaseResultCount; is hit? 
+        // #question suffix but contains? for AllSuffixResult$ResortParkPart? by jflute
         return getTargetTypeSuffixList().stream().anyMatch(suffix -> resolvedClass.getName().contains(suffix));
     }
 
@@ -510,7 +508,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     }
 
     protected String adjustFieldName(Class<?> clazz, Field field) {
-        // TODO p1us2er0 judge accurately (2017/04/20)
+        // TODO p1us2er0 judge accurately in adjustFieldName() (2017/04/20)
         if (clazz.getSimpleName().endsWith("Form")) {
             return field.getName();
         }
