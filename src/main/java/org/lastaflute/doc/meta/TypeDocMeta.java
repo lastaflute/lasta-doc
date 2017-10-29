@@ -23,6 +23,7 @@ import org.lastaflute.core.util.Lato;
 
 /**
  * @author p1us2er0
+ * @author jflute
  * @since 0.5.0-sp9 (2015/09/18 Friday)
  */
 public class TypeDocMeta {
@@ -30,28 +31,53 @@ public class TypeDocMeta {
     // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
+    // -----------------------------------------------------
+    //                                            Basic Item
+    //                                            ----------
     /** name. */
     private String name;
+
     /** type. */
     private transient Class<?> type;
+
     /** type name. */
     private String typeName;
+
     /** simple type name. */
     private String simpleTypeName;
-    /** generic type. */
-    private transient Class<?> genericType;
-    /** value. */
-    private String value;
+
+    // -----------------------------------------------------
+    //                                          Comment Item
+    //                                          ------------
+    /** The value expression of the type, for example, enum values. (NullAllowed) */
+    private String value; // e.g. {FML = Formalized, PRV = Provisinal, ...}
+
     /** description. */
     private String description;
+
     /** comment. */
     private String comment;
+
+    // -----------------------------------------------------
+    //                                          Generic Item
+    //                                          ------------
+    /** generic type. */
+    private transient Class<?> genericType;
+
+    // -----------------------------------------------------
+    //                                       Annotation Item
+    //                                       ---------------
     /** annotation type list. */
     public transient List<Annotation> annotationTypeList;
+
     /** annotation list. */
-    private List<String> annotationList = DfCollectionUtil.newArrayList();
-    /** nest meta bean list. */
-    private List<TypeDocMeta> nestTypeDocMetaList = DfCollectionUtil.newArrayList();
+    private List<String> annotationList = DfCollectionUtil.newArrayList(); // as default
+
+    // -----------------------------------------------------
+    //                                       Nested Property
+    //                                       ---------------
+    /** The list of nested meta, basically properties of part class. (NotNull, EmptyAllowed) */
+    private List<TypeDocMeta> nestTypeDocMetaList = DfCollectionUtil.newArrayList(); // as default
 
     // ===================================================================================
     //                                                                      Basic Override
@@ -64,6 +90,9 @@ public class TypeDocMeta {
     // ===================================================================================
     //                                                                            Accessor
     //                                                                            ========
+    // -----------------------------------------------------
+    //                                            Basic Item
+    //                                            ----------
     public String getName() {
         return name;
     }
@@ -96,14 +125,9 @@ public class TypeDocMeta {
         this.simpleTypeName = simpleTypeName;
     }
 
-    public Class<?> getGenericType() {
-        return genericType;
-    }
-
-    public void setGenericType(Class<?> genericType) {
-        this.genericType = genericType;
-    }
-
+    // -----------------------------------------------------
+    //                                          Comment Item
+    //                                          ------------
     public String getValue() {
         return value;
     }
@@ -128,6 +152,20 @@ public class TypeDocMeta {
         this.comment = comment;
     }
 
+    // -----------------------------------------------------
+    //                                          Generic Item
+    //                                          ------------
+    public Class<?> getGenericType() {
+        return genericType;
+    }
+
+    public void setGenericType(Class<?> genericType) {
+        this.genericType = genericType;
+    }
+
+    // -----------------------------------------------------
+    //                                       Annotation Item
+    //                                       ---------------
     public List<Annotation> getAnnotationTypeList() {
         return annotationTypeList;
     }
@@ -144,6 +182,9 @@ public class TypeDocMeta {
         this.annotationList = annotationList;
     }
 
+    // -----------------------------------------------------
+    //                                       Nested Property
+    //                                       ---------------
     public List<TypeDocMeta> getNestTypeDocMetaList() {
         return nestTypeDocMetaList;
     }

@@ -21,7 +21,9 @@ import java.util.List;
 import org.lastaflute.core.util.Lato;
 
 /**
+ * The document meta of action, per execute method.
  * @author p1us2er0
+ * @author jflute
  * @since 0.5.0-sp9 (2015/09/18 Friday)
  */
 public class ActionDocMeta {
@@ -29,42 +31,89 @@ public class ActionDocMeta {
     // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
-    /** url. */
+    // -----------------------------------------------------
+    //                                           Action Item
+    //                                           -----------
+    /** The url of the execute method. e.g. /sea/land/ (NotNull: after setup) */
     private String url;
-    /** type. */
-    private transient Class<?> type;
-    /** type name. */
+
+    // -----------------------------------------------------
+    //                                            Class Item
+    //                                            ----------
+    /** The type declaring the execute method. e.g. org.docksidestage.app.web.sea.SeaAction.class (NotNull: after setup) */
+    private transient Class<?> type; // #question why transient? by jflute
+
+    /** The full name of type declaring the execute method. e.g. "org.docksidestage.app.web.sea.SeaAction" (NotNull: after setup) */
     private String typeName;
-    /** simple type name. */
+
+    /** The simple name of type declaring the execute method. e.g. "SeaAction" (NotNull: after setup) */
     private String simpleTypeName;
+
     /** description. */
-    private String description;
+    private String description; // basically extracted by java parser
+
     /** type comment. */
-    private String typeComment;
-    /** file type doc meta. */
+    private String typeComment; // basically extracted by java parser
+
+    // -----------------------------------------------------
+    //                                            Field Item
+    //                                            ----------
+    /** The list of field meta, in method declaring class. (NotNull: after setup) */
     private List<TypeDocMeta> fieldTypeDocMetaList;
-    /** method mame. */
+
+    // -----------------------------------------------------
+    //                                           Method Item
+    //                                           -----------
+    /** The method name of action execute. e.g. org.docksidestage.app.web.sea.SeaAction@land() (NotNull: after setup) */
     private String methodName;
-    /** method comment. */
-    private String methodComment;
-    /** annotation type list. */
-    public transient List<Annotation> annotationTypeList;
+
+    /** The method comment of action execute. e.g. "Let's go to land" */
+    private String methodComment; // basically extracted by java parser
+
+    // -----------------------------------------------------
+    //                                       Annotation Item
+    //                                       ---------------
+    /** The list of annotation type defined at both action and execute method. (Required) */
+    public transient List<Annotation> annotationTypeList; // #question why transient, public? by jflute
+
     /** annotation list. */
-    private List<String> annotationList;
+    private List<String> annotationList; // #question what is this? by jflute
+
+    // -----------------------------------------------------
+    //                                           IN/OUT Item
+    //                                           -----------
     /** parameter type doc meta list. */
     private List<TypeDocMeta> parameterTypeDocMetaList;
+
     /** form type doc meta. */
     private TypeDocMeta formTypeDocMeta;
+
     /** return type doc meta. */
     private TypeDocMeta returnTypeDocMeta;
+
+    // -----------------------------------------------------
+    //                                           Source Item
+    //                                           -----------
     /** file line count. */
-    private Integer fileLineCount;
+    private Integer fileLineCount; // basically extracted by java parser
+
     /** method line count. */
-    private Integer methodLineCount;
+    private Integer methodLineCount; // basically extracted by java parser
+
+    // ===================================================================================
+    //                                                                      Basic Override
+    //                                                                      ==============
+    @Override
+    public String toString() {
+        return Lato.string(this);
+    }
 
     // ===================================================================================
     //                                                                            Accessor
     //                                                                            ========
+    // -----------------------------------------------------
+    //                                           Action Item
+    //                                           -----------
     public String getUrl() {
         return url;
     }
@@ -73,6 +122,9 @@ public class ActionDocMeta {
         this.url = url;
     }
 
+    // -----------------------------------------------------
+    //                                            Class Item
+    //                                            ----------
     public Class<?> getType() {
         return type;
     }
@@ -113,6 +165,9 @@ public class ActionDocMeta {
         this.typeComment = typeComment;
     }
 
+    // -----------------------------------------------------
+    //                                            Field Item
+    //                                            ----------
     public List<TypeDocMeta> getFieldTypeDocMetaList() {
         return fieldTypeDocMetaList;
     }
@@ -121,6 +176,9 @@ public class ActionDocMeta {
         this.fieldTypeDocMetaList = fieldTypeDocMetaList;
     }
 
+    // -----------------------------------------------------
+    //                                           Method Item
+    //                                           -----------
     public String getMethodName() {
         return methodName;
     }
@@ -137,6 +195,9 @@ public class ActionDocMeta {
         this.methodComment = methodComment;
     }
 
+    // -----------------------------------------------------
+    //                                       Annotation Item
+    //                                       ---------------
     public List<Annotation> getAnnotationTypeList() {
         return annotationTypeList;
     }
@@ -153,6 +214,9 @@ public class ActionDocMeta {
         this.annotationList = annotationList;
     }
 
+    // -----------------------------------------------------
+    //                                           IN/OUT Item
+    //                                           -----------
     public List<TypeDocMeta> getParameterTypeDocMetaList() {
         return parameterTypeDocMetaList;
     }
@@ -177,6 +241,9 @@ public class ActionDocMeta {
         this.returnTypeDocMeta = returnTypeDocMeta;
     }
 
+    // -----------------------------------------------------
+    //                                           Source Item
+    //                                           -----------
     public Integer getFileLineCount() {
         return fileLineCount;
     }
@@ -191,10 +258,5 @@ public class ActionDocMeta {
 
     public void setMethodLineCount(Integer methodLineCount) {
         this.methodLineCount = methodLineCount;
-    }
-
-    @Override
-    public String toString() {
-        return Lato.string(this);
     }
 }
