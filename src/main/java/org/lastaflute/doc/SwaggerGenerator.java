@@ -373,7 +373,7 @@ public class SwaggerGenerator {
     //   }
     // },
     //
-    protected void setupSwaggerPathMap(Map<String, Map<String, Object>> swaggerPathMap // map of top-level paths 
+    protected void setupSwaggerPathMap(Map<String, Map<String, Object>> swaggerPathMap // map of top-level paths
             , Map<String, Map<String, Object>> swaggerDefinitionsMap // map of top-level definitions
             , List<Map<String, Object>> swaggerTagList) { // top-level tags
         createActionDocumentGenerator().generateActionDocMetaList().stream().forEach(actiondocMeta -> {
@@ -381,7 +381,7 @@ public class SwaggerGenerator {
         });
     }
 
-    protected void doSetupSwaggerPathMap(Map<String, Map<String, Object>> swaggerPathMap // map of top-level paths 
+    protected void doSetupSwaggerPathMap(Map<String, Map<String, Object>> swaggerPathMap // map of top-level paths
             , Map<String, Map<String, Object>> swaggerDefinitionsMap // map of top-level definitions
             , List<Map<String, Object>> swaggerTagList // top-level tags
             , ActionDocMeta actiondocMeta) { // document meta of current action
@@ -479,7 +479,19 @@ public class SwaggerGenerator {
                 //         "schema": {
                 //           "$ref": "#/definitions/org.docksidestage.app.web.signin.SigninBody"
                 //         }
-                parameterMap.put("schema", DfCollectionUtil.newLinkedHashMap("$ref", prepareSwaggerMapRefDefinitions(actiondocMeta)));
+                // or
+                //         "schema": {
+                //           "type": "array",
+                //           "items": {
+                //             "$ref": "#/definitions/org.docksidestage.app.web.wx.remogen.bean.simple.SuperSimpleBody"
+                //           }
+                //         }
+                LinkedHashMap<String, String> schemaMap = DfCollectionUtil.newLinkedHashMap("$ref", prepareSwaggerMapRefDefinitions(actiondocMeta));
+                if (!Iterable.class.isAssignableFrom(actiondocMeta.getFormTypeDocMeta().getType())) {
+                    parameterMap.put("schema", schemaMap);
+                } else {
+                    parameterMap.put("schema", DfCollectionUtil.newLinkedHashMap("type", "array", "items", schemaMap));
+                }
                 parameterMapList.add(parameterMap);
             }
         }
