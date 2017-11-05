@@ -40,6 +40,7 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
@@ -397,10 +398,7 @@ public class SwaggerGenerator {
         //   "post": {
         final String httpMethod = extractHttpMethod(actionDocMeta);
         final Map<String, Object> swaggerHttpMethodMap = DfCollectionUtil.newLinkedHashMap();
-        {
-            final Map<String, Object> swaggerUrlMap = swaggerPathMap.get(actionUrl);
-            swaggerUrlMap.put(httpMethod, swaggerHttpMethodMap);
-        }
+        swaggerPathMap.get(actionUrl).put(httpMethod, swaggerHttpMethodMap);
 
         //     "summary": "@author jflute",
         //     "description": "@author jflute",
@@ -418,16 +416,17 @@ public class SwaggerGenerator {
         //       }
         //     ],
         final List<Map<String, Object>> parameterMapList = DfCollectionUtil.newArrayList();
+        final List<String> optionalPathNameList = DfCollectionUtil.newArrayList();
         parameterMapList.addAll(actionDocMeta.getParameterTypeDocMetaList().stream().map(typeDocMeta -> {
             final Map<String, Object> parameterMap = toParameterMap(typeDocMeta, swaggerDefinitionsMap);
             parameterMap.put("in", "path");
-            if (!OptionalThing.class.isAssignableFrom(typeDocMeta.getType())) {
-                parameterMap.put("required", true);
-            }
-            // TODO p1us2er0 Swagger path parameters are always required. (2017/10/12)
+            // p1us2er0 Swagger path parameters are always required. (2017/10/12)
             // If path parameter is Option, define Path separately.
             // https://stackoverflow.com/questions/45549663/swagger-schema-error-should-not-have-additional-properties
             parameterMap.put("required", true);
+            if (OptionalThing.class.isAssignableFrom(typeDocMeta.getType())) {
+                optionalPathNameList.add(typeDocMeta.getName());
+            }
             return parameterMap;
         }).collect(Collectors.toList()));
 
@@ -513,10 +512,42 @@ public class SwaggerGenerator {
         //     "responses": {
         //       ...
         prepareSwaggerMapResponseMap(swaggerHttpMethodMap, actionDocMeta, swaggerDefinitionsMap);
+
+        if (!optionalPathNameList.isEmpty()) {
+            doSetupSwaggerPathMapForOptionalPath(swaggerPathMap, actionDocMeta, optionalPathNameList);
+        }
     }
 
-    protected String extractHttpMethod(ActionDocMeta actiondocMeta) {
-        final Matcher matcher = HTTP_METHOD_PATTERN.matcher(actiondocMeta.getMethodName());
+    protected void doSetupSwaggerPathMapForOptionalPath(Map<String, Map<String, Object>> swaggerPathMap, ActionDocMeta actionDocMeta,
+            List<String> optionalPathNameList) {
+        final String actionUrl = actionDocMeta.getUrl();
+        final String httpMethod = extractHttpMethod(actionDocMeta);
+        JsonManager jsonManager = getJsonManager();
+        String json = jsonManager.toJson(swaggerPathMap.get(actionUrl).get(httpMethod));
+
+        IntStream.range(0, optionalPathNameList.size()).forEach(index -> {
+            List<String> currentOptionalPathNameList = optionalPathNameList.subList(0, index + 1);
+            String optionalPath = currentOptionalPathNameList.stream().collect(Collectors.joining("}/{", "/{", "}"));
+            String url = actionUrl.replace(optionalPath, "");
+            // arrange swaggerUrlMap in swaggerPathMap if needs
+            if (!swaggerPathMap.containsKey(url)) { // first action for the URL
+                final Map<String, Object> swaggerUrlMap = DfCollectionUtil.newLinkedHashMap();
+                swaggerPathMap.put(url, swaggerUrlMap);
+            }
+            Map<String, Object> swaggerHttpMethodMap = jsonManager.fromJsonParameteried(json, new ParameterizedRef<Map<String, Object>>() {
+            }.getType());
+            @SuppressWarnings("unchecked")
+            final List<Map<String, Object>> parameterMapList =
+                    ((List<Map<String, Object>>) swaggerHttpMethodMap.get("parameters")).stream().filter(parameter -> {
+                        return !currentOptionalPathNameList.contains(parameter.get("name"));
+                    }).collect(Collectors.toList());
+            swaggerHttpMethodMap.put("parameters", parameterMapList);
+            swaggerPathMap.get(url).put(httpMethod, swaggerHttpMethodMap);
+        });
+    }
+
+    protected String extractHttpMethod(ActionDocMeta actionDocMeta) {
+        final Matcher matcher = HTTP_METHOD_PATTERN.matcher(actionDocMeta.getMethodName());
         return matcher.find() ? matcher.group(1) : "post";
     }
 
