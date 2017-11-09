@@ -526,24 +526,26 @@ public class SwaggerGenerator {
         String json = jsonManager.toJson(swaggerPathMap.get(actionUrl).get(httpMethod));
 
         IntStream.range(0, optionalPathNameList.size()).forEach(index -> {
-            List<String> currentOptionalPathNameList = optionalPathNameList.subList(0, index + 1);
-            String optionalPath = currentOptionalPathNameList.stream().collect(Collectors.joining("}/{", "/{", "}"));
-            String url = actionUrl.replace(optionalPath, "");
+            List<String> deleteOptionalPathNameList = optionalPathNameList.subList(index, optionalPathNameList.size());
+            String deleteOptionalPathNameUrl = deleteOptionalPathNameList.stream().reduce(actionUrl, (aactionUrl, optionalPathName) -> {
+                return aactionUrl.replaceAll("/\\{" + optionalPathName + "\\}", "");
+            });
             // arrange swaggerUrlMap in swaggerPathMap if needs
-            if (!swaggerPathMap.containsKey(url)) { // first action for the URL
-                final Map<String, Object> swaggerUrlMap = DfCollectionUtil.newLinkedHashMap();
-                swaggerPathMap.put(url, swaggerUrlMap);
+            if (!swaggerPathMap.containsKey(deleteOptionalPathNameUrl)) { // first action for the URL
+                swaggerPathMap.put(deleteOptionalPathNameUrl, DfCollectionUtil.newLinkedHashMap());
             }
             Map<String, Object> swaggerHttpMethodMap = jsonManager.fromJsonParameteried(json, new ParameterizedRef<Map<String, Object>>() {
             }.getType());
             @SuppressWarnings("unchecked")
             final List<Map<String, Object>> parameterMapList =
                     ((List<Map<String, Object>>) swaggerHttpMethodMap.get("parameters")).stream().filter(parameter -> {
-                        return !currentOptionalPathNameList.contains(parameter.get("name"));
+                        return !deleteOptionalPathNameList.contains(parameter.get("name"));
                     }).collect(Collectors.toList());
             swaggerHttpMethodMap.put("parameters", parameterMapList);
-            swaggerPathMap.get(url).put(httpMethod, swaggerHttpMethodMap);
+            swaggerPathMap.get(deleteOptionalPathNameUrl).put(httpMethod, swaggerHttpMethodMap);
         });
+        Map<String, Object> swaggerUrlMap = swaggerPathMap.remove(actionUrl);
+        swaggerPathMap.put(actionUrl, swaggerUrlMap);
     }
 
     protected String extractHttpMethod(ActionDocMeta actionDocMeta) {
