@@ -442,11 +442,11 @@ public class SwaggerGenerator {
                 //       ...
                 //     ],
                 swaggerHttpMethodMap.put("consumes", Arrays.asList("application/x-www-form-urlencoded"));
-                parameterMapList.addAll(actionDocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(parameterDocMeta -> {
-                    final Map<String, Object> parameterMap = toParameterMap(parameterDocMeta, swaggerDefinitionsMap);
-                    parameterMap.put("name", parameterDocMeta.getName());
+                parameterMapList.addAll(actionDocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(typeDocMeta -> {
+                    final Map<String, Object> parameterMap = toParameterMap(typeDocMeta, swaggerDefinitionsMap);
+                    parameterMap.put("name", typeDocMeta.getName());
                     parameterMap.put("in", "get".equals(httpMethod) ? "query" : "formData");
-                    parameterMap.put("required", parameterDocMeta.getAnnotationTypeList().stream().anyMatch(annotationType -> {
+                    parameterMap.put("required", typeDocMeta.getAnnotationTypeList().stream().anyMatch(annotationType -> {
                         return getRequiredAnnotationList().stream()
                                 .anyMatch(requiredAnnotation -> requiredAnnotation.isAssignableFrom(annotationType.getClass()));
                     }));
