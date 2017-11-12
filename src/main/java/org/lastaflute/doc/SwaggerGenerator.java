@@ -55,16 +55,14 @@ import org.dbflute.util.DfStringUtil;
 import org.dbflute.util.DfTypeUtil;
 import org.hibernate.validator.constraints.Length;
 import org.lastaflute.core.direction.AccessibleConfig;
-import org.lastaflute.core.json.JsonManager;
-import org.lastaflute.core.json.SimpleJsonManager;
-import org.lastaflute.core.json.engine.GsonJsonEngine;
+import org.lastaflute.core.json.JsonMappingOption;
+import org.lastaflute.core.json.engine.RealJsonEngine;
 import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.di.helper.misc.ParameterizedRef;
 import org.lastaflute.di.util.tiger.Tuple3;
 import org.lastaflute.doc.generator.ActionDocumentGenerator;
 import org.lastaflute.doc.meta.ActionDocMeta;
 import org.lastaflute.doc.meta.TypeDocMeta;
-import org.lastaflute.doc.util.LaDocReflectionUtil;
 import org.lastaflute.doc.web.LaActionSwaggerable;
 import org.lastaflute.web.response.ActionResponse;
 import org.lastaflute.web.response.HtmlResponse;
@@ -182,7 +180,7 @@ public class SwaggerGenerator {
     //                                                                              ======
     // basically called by unit test
     public void saveSwaggerMeta(LaActionSwaggerable swaggerable) {
-        final String json = createJsonParser().toJson(swaggerable.json().getJsonResult());
+        final String json = createJsonEngine().toJson(swaggerable.json().getJsonResult());
 
         final Path path = Paths.get(getLastaDocDir(), "swagger.json");
         final Path parentPath = path.getParent();
@@ -214,7 +212,7 @@ public class SwaggerGenerator {
                 InputStreamReader inputStreamReader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
                 BufferedReader bufferedReader = new BufferedReader(inputStreamReader)) {
             String json = DfResourceUtil.readText(bufferedReader);
-            return OptionalThing.of(getJsonManager().fromJsonParameteried(json, new ParameterizedRef<Map<String, Object>>() {
+            return OptionalThing.of(createJsonEngine().fromJsonParameteried(json, new ParameterizedRef<Map<String, Object>>() {
             }.getType()));
         } catch (IOException e) {
             throw new IllegalStateException("Failed to read the json to the file: " + swaggerJsonFilePath, e);
@@ -448,6 +446,10 @@ public class SwaggerGenerator {
                     final Map<String, Object> parameterMap = toParameterMap(parameterDocMeta, swaggerDefinitionsMap);
                     parameterMap.put("name", parameterDocMeta.getName());
                     parameterMap.put("in", "get".equals(httpMethod) ? "query" : "formData");
+                    parameterMap.put("required", parameterDocMeta.getAnnotationTypeList().stream().anyMatch(annotationType -> {
+                        return getRequiredAnnotationList().stream()
+                                .anyMatch(requiredAnnotation -> requiredAnnotation.isAssignableFrom(annotationType.getClass()));
+                    }));
                     return parameterMap;
                 }).collect(Collectors.toList()));
             } else {
@@ -522,8 +524,8 @@ public class SwaggerGenerator {
             List<String> optionalPathNameList) {
         final String actionUrl = actionDocMeta.getUrl();
         final String httpMethod = extractHttpMethod(actionDocMeta);
-        JsonManager jsonManager = getJsonManager();
-        String json = jsonManager.toJson(swaggerPathMap.get(actionUrl).get(httpMethod));
+        RealJsonEngine jsonEngine = createJsonEngine();
+        String json = jsonEngine.toJson(swaggerPathMap.get(actionUrl).get(httpMethod));
 
         IntStream.range(0, optionalPathNameList.size()).forEach(index -> {
             List<String> deleteOptionalPathNameList = optionalPathNameList.subList(index, optionalPathNameList.size());
@@ -534,7 +536,7 @@ public class SwaggerGenerator {
             if (!swaggerPathMap.containsKey(deleteOptionalPathNameUrl)) { // first action for the URL
                 swaggerPathMap.put(deleteOptionalPathNameUrl, DfCollectionUtil.newLinkedHashMap());
             }
-            Map<String, Object> swaggerHttpMethodMap = jsonManager.fromJsonParameteried(json, new ParameterizedRef<Map<String, Object>>() {
+            Map<String, Object> swaggerHttpMethodMap = jsonEngine.fromJsonParameteried(json, new ParameterizedRef<Map<String, Object>>() {
             }.getType());
             @SuppressWarnings("unchecked")
             final List<Map<String, Object>> parameterMapList =
@@ -656,8 +658,6 @@ public class SwaggerGenerator {
         if (DfStringUtil.is_NotNull_and_NotEmpty(typeDocMeta.getDescription())) {
             parameterMap.put("description", typeDocMeta.getDescription());
         }
-        // TODO p1us2er0 required process. (2017/10/12)
-        // parameterMap.put("required", xxx);
         if (typeMap.containsKey(typeDocMeta.getType())) {
             final Tuple3<String, String, Function<Object, Object>> swaggerType = typeMap.get(typeDocMeta.getType());
             parameterMap.put("type", swaggerType.getValue1());
@@ -874,45 +874,21 @@ public class SwaggerGenerator {
     }
 
     protected DateTimeFormatter getLocalDateFormatter() {
-        OptionalThing<DateTimeFormatter> localDateFormatter;
-        JsonManager jsonManager = getJsonManager();
-        if (jsonManager instanceof SimpleJsonManager) {
-            localDateFormatter = LaDocReflectionUtil.getNoException(() -> {
-                return ((SimpleJsonManager) jsonManager).getJsonMappingOption()
-                        .flatMap(jsonMappingOption -> jsonMappingOption.getLocalDateFormatter());
-            });
-        } else {
-            localDateFormatter = OptionalThing.empty();
-        }
-        return localDateFormatter.orElseGet(() -> DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        return getApplicationJsonMappingOption()
+                .flatMap(applicationJsonMappingOption -> applicationJsonMappingOption.getLocalDateFormatter())
+                .orElseGet(() -> DateTimeFormatter.ofPattern("yyyy-MM-dd"));
     }
 
     protected DateTimeFormatter getLocalDateTimeFormatter() {
-        OptionalThing<DateTimeFormatter> localDateTimeFormatter;
-        JsonManager jsonManager = getJsonManager();
-        if (jsonManager instanceof SimpleJsonManager) {
-            localDateTimeFormatter = LaDocReflectionUtil.getNoException(() -> {
-                return ((SimpleJsonManager) jsonManager).getJsonMappingOption()
-                        .flatMap(jsonMappingOption -> jsonMappingOption.getLocalDateTimeFormatter());
-            });
-        } else {
-            localDateTimeFormatter = OptionalThing.empty();
-        }
-        return localDateTimeFormatter.orElseGet(() -> DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS"));
+        return getApplicationJsonMappingOption()
+                .flatMap(applicationJsonMappingOption -> applicationJsonMappingOption.getLocalDateTimeFormatter())
+                .orElseGet(() -> DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS"));
     }
 
     protected DateTimeFormatter getLocalTimeFormatter() {
-        OptionalThing<DateTimeFormatter> localDateTimeFormatter;
-        JsonManager jsonManager = getJsonManager();
-        if (jsonManager instanceof SimpleJsonManager) {
-            localDateTimeFormatter = LaDocReflectionUtil.getNoException(() -> {
-                return ((SimpleJsonManager) jsonManager).getJsonMappingOption()
-                        .flatMap(jsonMappingOption -> jsonMappingOption.getLocalTimeFormatter());
-            });
-        } else {
-            localDateTimeFormatter = OptionalThing.empty();
-        }
-        return localDateTimeFormatter.orElseGet(() -> DateTimeFormatter.ofPattern("HH:mm:ss.SSS"));
+        return getApplicationJsonMappingOption()
+                .flatMap(applicationJsonMappingOption -> applicationJsonMappingOption.getLocalTimeFormatter())
+                .orElseGet(() -> DateTimeFormatter.ofPattern("HH:mm:ss.SSS"));
     }
 
     protected OptionalThing<Object> deriveDefaultValue(TypeDocMeta typeDocMeta) {
@@ -984,22 +960,19 @@ public class SwaggerGenerator {
     // ===================================================================================
     //                                                                        Small Helper
     //                                                                        ============
-    protected GsonJsonEngine createJsonParser() {
-        return new DocumentGenerator().createJsonParser();
+    protected RealJsonEngine createJsonEngine() {
+        return new DocumentGenerator().createJsonEngine();
     }
 
     protected String getLastaDocDir() {
         return new DocumentGenerator().getLastaDocDir();
     }
 
-    // ===================================================================================
-    //                                                                           Component
-    //                                                                           =========
     protected AccessibleConfig getAccessibleConfig() {
         return ContainerUtil.getComponent(AccessibleConfig.class);
     }
 
-    protected JsonManager getJsonManager() {
-        return ContainerUtil.getComponent(JsonManager.class);
+    protected OptionalThing<JsonMappingOption> getApplicationJsonMappingOption() {
+        return new DocumentGenerator().getApplicationJsonMappingOption();
     }
 }
