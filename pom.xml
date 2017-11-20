@@ -17,7 +17,7 @@
 		<lasta.job.version>0.5.1</lasta.job.version>
 		<servlet.version>3.1.0</servlet.version>
 		<javaparser.version>3.5.2</javaparser.version>
-		<utflute.version>0.8.3</utflute.version>
+		<utflute.version>0.8.4</utflute.version>
 	</properties>
 
 	<licenses>
