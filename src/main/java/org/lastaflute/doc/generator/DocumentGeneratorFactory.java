@@ -15,11 +15,18 @@
  */
 package org.lastaflute.doc.generator;
 
+import java.io.File;
 import java.util.List;
 
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfReflectionUtil;
 import org.dbflute.util.DfReflectionUtil.ReflectionFailureException;
+import org.lastaflute.core.json.JsonManager;
+import org.lastaflute.core.json.JsonMappingOption;
+import org.lastaflute.core.json.SimpleJsonManager;
+import org.lastaflute.core.json.engine.GsonJsonEngine;
+import org.lastaflute.core.json.engine.RealJsonEngine;
+import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.doc.reflector.SourceParserReflector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,5 +63,28 @@ public class DocumentGeneratorFactory {
         return OptionalThing.ofNullable(generator, () -> {
             throw new IllegalStateException("Not found the lasta job: " + className);
         });
+    }
+
+    public String getLastaDocDir() {
+        if (new File("./pom.xml").exists()) {
+            return "./target/lastadoc/";
+        }
+        return "./build/lastadoc/";
+    }
+
+    public RealJsonEngine createJsonEngine() {
+        return new GsonJsonEngine(builder -> {
+            builder.serializeNulls().setPrettyPrinting();
+        }, op -> {});
+        // not to depend on application settings
+        //return ContainerUtil.getComponent(JsonManager.class);
+    }
+
+    public OptionalThing<JsonMappingOption> getApplicationJsonMappingOption() {
+        JsonManager jsonManager = ContainerUtil.getComponent(JsonManager.class);
+        if (jsonManager instanceof SimpleJsonManager) {
+            return ((SimpleJsonManager) jsonManager).getJsonMappingOption();
+        }
+        return OptionalThing.empty();
     }
 }

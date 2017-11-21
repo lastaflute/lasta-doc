@@ -55,7 +55,6 @@ import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.di.core.ComponentDef;
 import org.lastaflute.di.core.LaContainer;
 import org.lastaflute.di.core.factory.SingletonLaContainerFactory;
-import org.lastaflute.doc.DocumentGenerator;
 import org.lastaflute.doc.meta.ActionDocMeta;
 import org.lastaflute.doc.meta.TypeDocMeta;
 import org.lastaflute.doc.reflector.SourceParserReflector;
@@ -296,6 +295,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         returnDocMeta.setGenericType(DfReflectionUtil.getGenericFirstClass(method.getGenericReturnType()));
         returnDocMeta.setAnnotationTypeList(Arrays.asList(method.getAnnotatedReturnType().getAnnotations()));
         returnDocMeta.setAnnotationList(analyzeAnnotationList(returnDocMeta.getAnnotationTypeList()));
+        derivedManualReturnClass(method, returnDocMeta);
 
         Class<?> returnClass = returnDocMeta.getGenericType();
         if (returnClass != null) { // e.g. List<String>, Sea<Land>
@@ -326,6 +326,9 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         }
 
         return returnDocMeta;
+    }
+
+    protected void derivedManualReturnClass(Method method, TypeDocMeta returnDocMeta) {
     }
 
     protected List<Class<?>> getNativeClassList() {
@@ -624,6 +627,10 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     // ===================================================================================
     //                                                                        Small Helper
     //                                                                        ============
+    protected DocumentGeneratorFactory createDocumentGeneratorFactory() {
+        return new DocumentGeneratorFactory();
+    }
+
     protected LaContainer getRootContainer() {
         return SingletonLaContainerFactory.getContainer().getRoot();
     }
@@ -633,6 +640,6 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     }
 
     protected OptionalThing<JsonMappingOption> getApplicationJsonMappingOption() {
-        return new DocumentGenerator().getApplicationJsonMappingOption();
+        return createDocumentGeneratorFactory().getApplicationJsonMappingOption();
     }
 }

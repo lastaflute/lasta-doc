@@ -27,12 +27,8 @@ import java.util.Map;
 
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
-import org.lastaflute.core.json.JsonManager;
 import org.lastaflute.core.json.JsonMappingOption;
-import org.lastaflute.core.json.SimpleJsonManager;
-import org.lastaflute.core.json.engine.GsonJsonEngine;
 import org.lastaflute.core.json.engine.RealJsonEngine;
-import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.doc.generator.ActionDocumentGenerator;
 import org.lastaflute.doc.generator.DocumentGeneratorFactory;
 import org.lastaflute.doc.generator.JobDocumentGenerator;
@@ -162,26 +158,18 @@ public class DocumentGenerator {
         return createDocumentGeneratorFactory().createJobDocumentGenerator(srcDirList, depth, sourceParserReflector);
     }
 
+    // ===================================================================================
+    //                                                                        Small Helper
+    //                                                                        ============
+    protected String getLastaDocDir() {
+        return createDocumentGeneratorFactory().getLastaDocDir();
+    }
+
     public RealJsonEngine createJsonEngine() {
-        return new GsonJsonEngine(builder -> {
-            builder.serializeNulls().setPrettyPrinting();
-        }, op -> {});
-        // not to depend on application settings
-        //return ContainerUtil.getComponent(JsonManager.class);
+    		return createDocumentGeneratorFactory().createJsonEngine();
     }
 
     public OptionalThing<JsonMappingOption> getApplicationJsonMappingOption() {
-        JsonManager jsonManager = ContainerUtil.getComponent(JsonManager.class);
-        if (jsonManager instanceof SimpleJsonManager) {
-            return ((SimpleJsonManager) jsonManager).getJsonMappingOption();
-        }
-        return OptionalThing.empty();
-    }
-
-    protected String getLastaDocDir() {
-        if (new File("./pom.xml").exists()) {
-            return "./target/lastadoc/";
-        }
-        return "./build/lastadoc/";
+        return createDocumentGeneratorFactory().getApplicationJsonMappingOption();
     }
 }
