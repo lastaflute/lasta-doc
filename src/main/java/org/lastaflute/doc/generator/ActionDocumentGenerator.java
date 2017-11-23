@@ -583,19 +583,14 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     protected List<String> findActionComponentNameList() {
         final List<String> componentNameList = DfCollectionUtil.newArrayList();
         final LaContainer container = getRootContainer();
-        srcDirList.forEach(srcDir -> {
-            if (!Paths.get(srcDir).toFile().exists()) {
-                return;
-            }
+        srcDirList.stream().filter(srcDir -> Paths.get(srcDir).toFile().exists()).forEach(srcDir -> {
             try (Stream<Path> stream = Files.find(Paths.get(srcDir), Integer.MAX_VALUE, (path, attr) -> {
                 return path.toString().endsWith("Action.java");
             })) {
-                stream.forEach(path -> {
+                stream.sorted().map(path -> {
                     final String className = extractActionClassName(path, srcDir);
-                    final Class<?> clazz = DfReflectionUtil.forName(className);
-                    if (clazz.isInterface() || Modifier.isAbstract(clazz.getModifiers())) {
-                        return;
-                    }
+                    return DfReflectionUtil.forName(className);
+                }).filter(clazz -> !clazz.isInterface() && !Modifier.isAbstract(clazz.getModifiers())).forEach(clazz -> {
                     final String componentName = container.getComponentDef(clazz).getComponentName();
                     if (componentName != null && !componentNameList.contains(componentName)) {
                         componentNameList.add(componentName);
