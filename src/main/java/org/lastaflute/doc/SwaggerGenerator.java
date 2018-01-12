@@ -35,6 +35,7 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -61,6 +62,7 @@ import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.di.helper.misc.ParameterizedRef;
 import org.lastaflute.di.util.tiger.Tuple3;
 import org.lastaflute.doc.generator.ActionDocumentGenerator;
+import org.lastaflute.doc.generator.DocumentGeneratorFactory;
 import org.lastaflute.doc.meta.ActionDocMeta;
 import org.lastaflute.doc.meta.TypeDocMeta;
 import org.lastaflute.doc.web.LaActionSwaggerable;
@@ -255,9 +257,9 @@ public class SwaggerGenerator {
 
     protected Map<String, String> createSwaggerInfoMap() {
         Map<String, String> swaggerInfoMap = DfCollectionUtil.newLinkedHashMap();
-        String domainName = getAccessibleConfig().get("domain.name");
-        swaggerInfoMap.put("title", domainName);
-        swaggerInfoMap.put("description", domainName);
+        String title = Objects.toString(getAccessibleConfig().get("domain.title"), getAccessibleConfig().get("domain.name"));
+        swaggerInfoMap.put("title", title);
+        swaggerInfoMap.put("description", title);
         swaggerInfoMap.put("version", "1.0.0");
         return swaggerInfoMap;
     }
@@ -853,6 +855,10 @@ public class SwaggerGenerator {
         return new DocumentGenerator();
     }
 
+    protected DocumentGeneratorFactory createDocumentGeneratorFactory() {
+        return new DocumentGeneratorFactory();
+    }
+
     protected ActionDocumentGenerator createActionDocumentGenerator() {
         return createDocumentGenerator().createActionDocumentGenerator();
     }
@@ -960,19 +966,19 @@ public class SwaggerGenerator {
     // ===================================================================================
     //                                                                        Small Helper
     //                                                                        ============
-    protected RealJsonEngine createJsonEngine() {
-        return new DocumentGenerator().createJsonEngine();
-    }
-
     protected String getLastaDocDir() {
-        return new DocumentGenerator().getLastaDocDir();
+        return createDocumentGeneratorFactory().getLastaDocDir();
     }
 
     protected AccessibleConfig getAccessibleConfig() {
         return ContainerUtil.getComponent(AccessibleConfig.class);
     }
 
+    protected RealJsonEngine createJsonEngine() {
+        return createDocumentGeneratorFactory().createJsonEngine();
+    }
+
     protected OptionalThing<JsonMappingOption> getApplicationJsonMappingOption() {
-        return new DocumentGenerator().getApplicationJsonMappingOption();
+        return createDocumentGeneratorFactory().getApplicationJsonMappingOption();
     }
 }
