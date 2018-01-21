@@ -36,8 +36,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -57,6 +58,7 @@ import org.dbflute.util.DfTypeUtil;
 import org.hibernate.validator.constraints.Length;
 import org.lastaflute.core.direction.AccessibleConfig;
 import org.lastaflute.core.json.JsonMappingOption;
+import org.lastaflute.core.json.annotation.JsonDatePattern;
 import org.lastaflute.core.json.engine.RealJsonEngine;
 import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.di.helper.misc.ParameterizedRef;
@@ -420,6 +422,10 @@ public class SwaggerGenerator {
         parameterMapList.addAll(actionDocMeta.getParameterTypeDocMetaList().stream().map(typeDocMeta -> {
             final Map<String, Object> parameterMap = toParameterMap(typeDocMeta, swaggerDefinitionsMap);
             parameterMap.put("in", "path");
+            if (parameterMap.containsKey("example")) {
+                parameterMap.put("default", parameterMap.get("example"));
+                parameterMap.remove("example");
+            }
             // p1us2er0 Swagger path parameters are always required. (2017/10/12)
             // If path parameter is Option, define Path separately.
             // https://stackoverflow.com/questions/45549663/swagger-schema-error-should-not-have-additional-properties
@@ -448,6 +454,10 @@ public class SwaggerGenerator {
                     final Map<String, Object> parameterMap = toParameterMap(typeDocMeta, swaggerDefinitionsMap);
                     parameterMap.put("name", typeDocMeta.getName());
                     parameterMap.put("in", "get".equals(httpMethod) ? "query" : "formData");
+                    if (parameterMap.containsKey("example")) {
+                        parameterMap.put("default", parameterMap.get("example"));
+                        parameterMap.remove("example");
+                    }
                     parameterMap.put("required", typeDocMeta.getAnnotationTypeList().stream().anyMatch(annotationType -> {
                         return getRequiredAnnotationList().stream()
                                 .anyMatch(requiredAnnotation -> requiredAnnotation.isAssignableFrom(annotationType.getClass()));
@@ -648,7 +658,7 @@ public class SwaggerGenerator {
     //                                                                       Parameter Map
     //                                                                       =============
     protected Map<String, Object> toParameterMap(TypeDocMeta typeDocMeta, Map<String, Map<String, Object>> definitionsMap) {
-        final Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> typeMap = createTypeMap();
+        final Map<Class<?>, Tuple3<String, String, BiFunction<TypeDocMeta, Object, Object>>> typeMap = createTypeMap();
         final Class<?> keepType = typeDocMeta.getType();
         if (typeDocMeta.getGenericType() != null && (ActionResponse.class.isAssignableFrom(typeDocMeta.getType())
                 || OptionalThing.class.isAssignableFrom(typeDocMeta.getType()))) {
@@ -661,7 +671,7 @@ public class SwaggerGenerator {
             parameterMap.put("description", typeDocMeta.getDescription());
         }
         if (typeMap.containsKey(typeDocMeta.getType())) {
-            final Tuple3<String, String, Function<Object, Object>> swaggerType = typeMap.get(typeDocMeta.getType());
+            final Tuple3<String, String, BiFunction<TypeDocMeta, Object, Object>> swaggerType = typeMap.get(typeDocMeta.getType());
             parameterMap.put("type", swaggerType.getValue1());
             final String format = swaggerType.getValue2();
             if (DfStringUtil.is_NotNull_and_NotEmpty(format)) {
@@ -711,7 +721,7 @@ public class SwaggerGenerator {
         });
 
         deriveDefaultValue(typeDocMeta).ifPresent(defaultValue -> {
-            parameterMap.put("default", defaultValue);
+            parameterMap.put("example", defaultValue);
         });
 
         typeDocMeta.setType(keepType);
@@ -719,7 +729,7 @@ public class SwaggerGenerator {
     }
 
     protected void setupBeanList(TypeDocMeta typeDocMeta, Map<String, Map<String, Object>> definitionsMap,
-            Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> typeMap, Map<String, Object> schemaMap) {
+            Map<Class<?>, Tuple3<String, String, BiFunction<TypeDocMeta, Object, Object>>> typeMap, Map<String, Object> schemaMap) {
         schemaMap.put("type", "array");
         if (!typeDocMeta.getNestTypeDocMetaList().isEmpty()) {
             final String definition = putDefinition(definitionsMap, typeDocMeta);
@@ -728,7 +738,7 @@ public class SwaggerGenerator {
             final Map<String, String> items = DfCollectionUtil.newLinkedHashMap();
             final Class<?> genericType = typeDocMeta.getGenericType();
             if (genericType != null) {
-                final Tuple3<String, String, Function<Object, Object>> swaggerType = typeMap.get(genericType);
+                final Tuple3<String, String, BiFunction<TypeDocMeta, Object, Object>> swaggerType = typeMap.get(genericType);
                 if (swaggerType != null) {
                     items.put("type", swaggerType.getValue1());
                     final String format = swaggerType.getValue2();
@@ -799,32 +809,36 @@ public class SwaggerGenerator {
         });
     }
 
-    protected Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> createTypeMap() {
-        final Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> typeMap = DfCollectionUtil.newLinkedHashMap();
-        typeMap.put(boolean.class, Tuple3.tuple3("boolean", null, value -> DfTypeUtil.toBoolean(value)));
-        typeMap.put(byte.class, Tuple3.tuple3("byte", null, value -> DfTypeUtil.toByte(value)));
-        typeMap.put(int.class, Tuple3.tuple3("integer", "int32", value -> DfTypeUtil.toInteger(value)));
-        typeMap.put(long.class, Tuple3.tuple3("integer", "int64", value -> DfTypeUtil.toLong(value)));
-        typeMap.put(float.class, Tuple3.tuple3("integer", "float", value -> DfTypeUtil.toFloat(value)));
-        typeMap.put(double.class, Tuple3.tuple3("integer", "double", value -> DfTypeUtil.toDouble(value)));
-        typeMap.put(Boolean.class, Tuple3.tuple3("boolean", null, value -> DfTypeUtil.toBoolean(value)));
-        typeMap.put(Byte.class, Tuple3.tuple3("boolean", null, value -> DfTypeUtil.toByte(value)));
-        typeMap.put(Integer.class, Tuple3.tuple3("integer", "int32", value -> DfTypeUtil.toInteger(value)));
-        typeMap.put(Long.class, Tuple3.tuple3("integer", "int64", value -> DfTypeUtil.toLong(value)));
-        typeMap.put(Float.class, Tuple3.tuple3("integer", "float", value -> DfTypeUtil.toFloat(value)));
-        typeMap.put(Double.class, Tuple3.tuple3("integer", "double", value -> DfTypeUtil.toDouble(value)));
-        typeMap.put(String.class, Tuple3.tuple3("string", null, value -> value));
-        typeMap.put(byte[].class, Tuple3.tuple3("string", "byte", value -> value));
-        typeMap.put(Byte[].class, Tuple3.tuple3("string", "byte", value -> value));
-        typeMap.put(Date.class,
-                Tuple3.tuple3("string", "date", value -> value == null ? getLocalDateFormatter().format(getDefaultLocalDate()) : value));
-        typeMap.put(LocalDate.class,
-                Tuple3.tuple3("string", "date", value -> value == null ? getLocalDateFormatter().format(getDefaultLocalDate()) : value));
-        typeMap.put(LocalDateTime.class, Tuple3.tuple3("string", "date-time",
-                value -> value == null ? getLocalDateTimeFormatter().format(getDefaultLocalDateTime()) : value));
-        typeMap.put(LocalTime.class,
-                Tuple3.tuple3("string", null, value -> value == null ? getLocalTimeFormatter().format(getDefaultLocalTime()) : value));
-        typeMap.put(MultipartFormFile.class, Tuple3.tuple3("binary", null, value -> value));
+    protected Map<Class<?>, Tuple3<String, String, BiFunction<TypeDocMeta, Object, Object>>> createTypeMap() {
+        final Map<Class<?>, Tuple3<String, String, BiFunction<TypeDocMeta, Object, Object>>> typeMap = DfCollectionUtil.newLinkedHashMap();
+        typeMap.put(boolean.class, Tuple3.tuple3("boolean", null, (typeDocMeta, value) -> DfTypeUtil.toBoolean(value)));
+        typeMap.put(byte.class, Tuple3.tuple3("byte", null, (typeDocMeta, value) -> DfTypeUtil.toByte(value)));
+        typeMap.put(int.class, Tuple3.tuple3("integer", "int32", (typeDocMeta, value) -> DfTypeUtil.toInteger(value)));
+        typeMap.put(long.class, Tuple3.tuple3("integer", "int64", (typeDocMeta, value) -> DfTypeUtil.toLong(value)));
+        typeMap.put(float.class, Tuple3.tuple3("integer", "float", (typeDocMeta, value) -> DfTypeUtil.toFloat(value)));
+        typeMap.put(double.class, Tuple3.tuple3("integer", "double", (typeDocMeta, value) -> DfTypeUtil.toDouble(value)));
+        typeMap.put(Boolean.class, Tuple3.tuple3("boolean", null, (typeDocMeta, value) -> DfTypeUtil.toBoolean(value)));
+        typeMap.put(Byte.class, Tuple3.tuple3("boolean", null, (typeDocMeta, value) -> DfTypeUtil.toByte(value)));
+        typeMap.put(Integer.class, Tuple3.tuple3("integer", "int32", (typeDocMeta, value) -> DfTypeUtil.toInteger(value)));
+        typeMap.put(Long.class, Tuple3.tuple3("integer", "int64", (typeDocMeta, value) -> DfTypeUtil.toLong(value)));
+        typeMap.put(Float.class, Tuple3.tuple3("integer", "float", (typeDocMeta, value) -> DfTypeUtil.toFloat(value)));
+        typeMap.put(Double.class, Tuple3.tuple3("integer", "double", (typeDocMeta, value) -> DfTypeUtil.toDouble(value)));
+        typeMap.put(String.class, Tuple3.tuple3("string", null, (typeDocMeta, value) -> value));
+        typeMap.put(byte[].class, Tuple3.tuple3("string", "byte", (typeDocMeta, value) -> value));
+        typeMap.put(Byte[].class, Tuple3.tuple3("string", "byte", (typeDocMeta, value) -> value));
+        typeMap.put(Date.class, Tuple3.tuple3("string", "date", (typeDocMeta, value) -> {
+            return value == null ? getLocalDateFormatter(typeDocMeta).format(getDefaultLocalDate()) : value;
+        }));
+        typeMap.put(LocalDate.class, Tuple3.tuple3("string", "date", (typeDocMeta, value) -> {
+            return value == null ? getLocalDateFormatter(typeDocMeta).format(getDefaultLocalDate()) : value;
+        }));
+        typeMap.put(LocalDateTime.class, Tuple3.tuple3("string", "date-time", (typeDocMeta, value) -> {
+            return value == null ? getLocalDateTimeFormatter(typeDocMeta).format(getDefaultLocalDateTime()) : value;
+        }));
+        typeMap.put(LocalTime.class, Tuple3.tuple3("string", null, (typeDocMeta, value) -> {
+            return value == null ? getLocalTimeFormatter(typeDocMeta).format(getDefaultLocalTime()) : value;
+        }));
+        typeMap.put(MultipartFormFile.class, Tuple3.tuple3("binary", null, (typeDocMeta, value) -> value));
         return typeMap;
     }
 
@@ -879,29 +893,51 @@ public class SwaggerGenerator {
         return LocalTime.from(getDefaultLocalDateTime());
     }
 
-    protected DateTimeFormatter getLocalDateFormatter() {
+    protected DateTimeFormatter getLocalDateFormatter(TypeDocMeta typeDocMeta) {
+        Optional<DateTimeFormatter> jsonDatePatternDateTimeFormatter = getJsonDatePatternDateTimeFormatter(typeDocMeta);
+        if (jsonDatePatternDateTimeFormatter.isPresent()) {
+            return jsonDatePatternDateTimeFormatter.get();
+        }
         return getApplicationJsonMappingOption()
                 .flatMap(applicationJsonMappingOption -> applicationJsonMappingOption.getLocalDateFormatter())
                 .orElseGet(() -> DateTimeFormatter.ofPattern("yyyy-MM-dd"));
     }
 
-    protected DateTimeFormatter getLocalDateTimeFormatter() {
+    protected DateTimeFormatter getLocalDateTimeFormatter(TypeDocMeta typeDocMeta) {
+        Optional<DateTimeFormatter> jsonDatePatternDateTimeFormatter = getJsonDatePatternDateTimeFormatter(typeDocMeta);
+        if (jsonDatePatternDateTimeFormatter.isPresent()) {
+            return jsonDatePatternDateTimeFormatter.get();
+        }
         return getApplicationJsonMappingOption()
                 .flatMap(applicationJsonMappingOption -> applicationJsonMappingOption.getLocalDateTimeFormatter())
                 .orElseGet(() -> DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS"));
     }
 
-    protected DateTimeFormatter getLocalTimeFormatter() {
+    protected DateTimeFormatter getLocalTimeFormatter(TypeDocMeta typeDocMeta) {
+        Optional<DateTimeFormatter> jsonDatePatternDateTimeFormatter = getJsonDatePatternDateTimeFormatter(typeDocMeta);
+        if (jsonDatePatternDateTimeFormatter.isPresent()) {
+            return jsonDatePatternDateTimeFormatter.get();
+        }
         return getApplicationJsonMappingOption()
                 .flatMap(applicationJsonMappingOption -> applicationJsonMappingOption.getLocalTimeFormatter())
                 .orElseGet(() -> DateTimeFormatter.ofPattern("HH:mm:ss.SSS"));
     }
 
+    protected Optional<DateTimeFormatter> getJsonDatePatternDateTimeFormatter(TypeDocMeta typeDocMeta) {
+        return typeDocMeta.getAnnotationTypeList()
+                .stream()
+                .filter(annotationType -> annotationType instanceof JsonDatePattern)
+                .findFirst()
+                .map(jsonDatePattern -> {
+                    return DateTimeFormatter.ofPattern(((JsonDatePattern) jsonDatePattern).value());
+                });
+    }
+
     protected OptionalThing<Object> deriveDefaultValue(TypeDocMeta typeDocMeta) {
-        Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> typeMap = createTypeMap();
+        Map<Class<?>, Tuple3<String, String, BiFunction<TypeDocMeta, Object, Object>>> typeMap = createTypeMap();
         if (typeMap.containsKey(typeDocMeta.getType())) {
-            Tuple3<String, String, Function<Object, Object>> swaggerType = typeMap.get(typeDocMeta.getType());
-            Object defaultValue = swaggerType.getValue3().apply(deriveDefaultValueByComment(typeDocMeta.getComment()));
+            Tuple3<String, String, BiFunction<TypeDocMeta, Object, Object>> swaggerType = typeMap.get(typeDocMeta.getType());
+            Object defaultValue = swaggerType.getValue3().apply(typeDocMeta, deriveDefaultValueByComment(typeDocMeta.getComment()));
             if (defaultValue != null) {
                 return OptionalThing.of(defaultValue);
             }
@@ -916,10 +952,10 @@ public class SwaggerGenerator {
             if (genericType == null) {
                 genericType = String.class;
             }
-            Tuple3<String, String, Function<Object, Object>> swaggerType = typeMap.get(genericType);
+            Tuple3<String, String, BiFunction<TypeDocMeta, Object, Object>> swaggerType = typeMap.get(genericType);
             if (swaggerType != null) {
                 return OptionalThing.of(defaultValueList.stream().map(value -> {
-                    return swaggerType.getValue3().apply(value);
+                    return swaggerType.getValue3().apply(typeDocMeta, value);
                 }).collect(Collectors.toList()));
             }
         } else if (Enum.class.isAssignableFrom(typeDocMeta.getType())) {
