@@ -27,7 +27,8 @@ import java.util.Map;
 
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
-import org.lastaflute.core.json.engine.GsonJsonEngine;
+import org.lastaflute.core.json.JsonMappingOption;
+import org.lastaflute.core.json.engine.RealJsonEngine;
 import org.lastaflute.doc.generator.ActionDocumentGenerator;
 import org.lastaflute.doc.generator.DocumentGeneratorFactory;
 import org.lastaflute.doc.generator.JobDocumentGenerator;
@@ -117,7 +118,7 @@ public class DocumentGenerator {
     //                                                                         ===========
     public void saveLastaDocMeta() {
         final Map<String, Object> lastaDocDetailMap = generateLastaDocDetailMap();
-        final String json = createJsonParser().toJson(lastaDocDetailMap);
+        final String json = createJsonEngine().toJson(lastaDocDetailMap);
 
         final Path path = Paths.get(getLastaDocDir(), "analyzed-lastadoc.json");
         final Path parentPath = path.getParent();
@@ -157,18 +158,18 @@ public class DocumentGenerator {
         return createDocumentGeneratorFactory().createJobDocumentGenerator(srcDirList, depth, sourceParserReflector);
     }
 
-    protected GsonJsonEngine createJsonParser() {
-        return new GsonJsonEngine(builder -> {
-            builder.serializeNulls().setPrettyPrinting();
-        }, op -> {});
-        // not to depend on application settings
-        //return ContainerUtil.getComponent(JsonManager.class);
+    // ===================================================================================
+    //                                                                        Small Helper
+    //                                                                        ============
+    protected String getLastaDocDir() {
+        return createDocumentGeneratorFactory().getLastaDocDir();
     }
 
-    protected String getLastaDocDir() {
-        if (new File("./pom.xml").exists()) {
-            return "./target/lastadoc/";
-        }
-        return "./build/lastadoc/";
+    public RealJsonEngine createJsonEngine() {
+    		return createDocumentGeneratorFactory().createJsonEngine();
+    }
+
+    public OptionalThing<JsonMappingOption> getApplicationJsonMappingOption() {
+        return createDocumentGeneratorFactory().getApplicationJsonMappingOption();
     }
 }

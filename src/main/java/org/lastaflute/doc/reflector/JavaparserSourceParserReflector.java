@@ -16,8 +16,7 @@
 package org.lastaflute.doc.reflector;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.FileNotFoundException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.Arrays;
@@ -66,8 +65,8 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
     /** src dir list. (NotNull) */
     protected final List<String> srcDirList;
 
-    /** compilationUnitMap. (NotNull) */
-    protected final Map<Class<?>, CompilationUnit> compilationUnitMap = DfCollectionUtil.newHashMap();
+    /** cacheCompilationUnitMap. (NotNull) */
+    protected final static Map<String, CacheCompilationUnit> CACHE_COMPILATION_UNIT_MAP = DfCollectionUtil.newHashMap();
 
     // ===================================================================================
     //                                                                         Constructor
@@ -286,7 +285,7 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
     @Override
     public void reflect(TypeDocMeta typeDocMeta, Class<?> clazz) {
         List<Class<?>> classList = DfCollectionUtil.newArrayList();
-        for (Class< ?>targetClass = clazz; targetClass != null; targetClass = targetClass.getSuperclass()) {
+        for (Class<?> targetClass = clazz; targetClass != null; targetClass = targetClass.getSuperclass()) {
             classList.add(targetClass);
         }
         Collections.reverse(classList);
@@ -370,27 +369,51 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
     //                                                                         Parse Class
     //                                                                         ===========
     protected OptionalThing<CompilationUnit> parseClass(Class<?> clazz) {
-        if (!compilationUnitMap.containsKey(clazz)) {
-            for (String srcDir : srcDirList) {
-                File file = new File(srcDir, clazz.getName().replace('.', File.separatorChar) + ".java");
+        for (String srcDir : srcDirList) {
+            File file = new File(srcDir, clazz.getName().replace('.', File.separatorChar) + ".java");
+            if (!file.exists()) {
+                file = new File(srcDir, clazz.getName().replace('.', File.separatorChar).replaceAll("\\$.*", "") + ".java");
                 if (!file.exists()) {
-                    file = new File(srcDir, clazz.getName().replace('.', File.separatorChar).replaceAll("\\$.*", "") + ".java");
-                    if (!file.exists()) {
-                        continue;
-                    }
-                }
-                try (FileInputStream in = new FileInputStream(file)) {
-                    CompilationUnit compilationUnit = JavaParser.parse(in);
-                    compilationUnitMap.put(clazz, compilationUnit);
-                    return OptionalThing.of(compilationUnit);
-                } catch (IOException e) {
-                    return OptionalThing.empty();
+                    continue;
                 }
             }
-            compilationUnitMap.put(clazz, null);
+            if (CACHE_COMPILATION_UNIT_MAP.containsKey(clazz.getName())) {
+                CacheCompilationUnit cacheCompilationUnit = CACHE_COMPILATION_UNIT_MAP.get(clazz.getName());
+                if (cacheCompilationUnit != null && cacheCompilationUnit.fileLastModified == file.lastModified()
+                        && cacheCompilationUnit.fileLength == file.length()) {
+                    return OptionalThing.of(cacheCompilationUnit.compilationUnit);
+                }
+            }
+
+            CacheCompilationUnit cacheCompilationUnit = new CacheCompilationUnit();
+            cacheCompilationUnit.fileLastModified = file.lastModified();
+            cacheCompilationUnit.fileLength = file.length();
+            try {
+                cacheCompilationUnit.compilationUnit = JavaParser.parse(file);
+            } catch (FileNotFoundException e) {
+                throw new IllegalStateException("Source file don't exist.");
+            }
+
+            CACHE_COMPILATION_UNIT_MAP.put(clazz.getName(), cacheCompilationUnit);
+            return OptionalThing.of(cacheCompilationUnit.compilationUnit);
         }
-		return OptionalThing.ofNullable(compilationUnitMap.get(clazz), () -> {
-			throw new IllegalStateException("Source file don't exist.");
-		});
+        return OptionalThing.ofNullable(null, () -> {
+            throw new IllegalStateException("Source file don't exist.");
+        });
+    }
+
+    /**
+     * @author p1us2er0
+     */
+    private static class CacheCompilationUnit {
+
+        /** file last modified. */
+        private long fileLastModified;
+
+        /** file length. */
+        private long fileLength;
+
+        /** compilation unit. */
+        private CompilationUnit compilationUnit;
     }
 }

@@ -49,9 +49,8 @@ import org.dbflute.util.DfCollectionUtil;
 import org.dbflute.util.DfReflectionUtil;
 import org.dbflute.util.DfReflectionUtil.ReflectionFailureException;
 import org.dbflute.util.DfStringUtil;
-import org.lastaflute.core.json.JsonManager;
+import org.lastaflute.core.json.JsonMappingOption;
 import org.lastaflute.core.json.JsonMappingOption.JsonFieldNaming;
-import org.lastaflute.core.json.SimpleJsonManager;
 import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.di.core.ComponentDef;
 import org.lastaflute.di.core.LaContainer;
@@ -64,7 +63,6 @@ import org.lastaflute.web.Execute;
 import org.lastaflute.web.UrlChain;
 import org.lastaflute.web.path.ActionPathResolver;
 import org.lastaflute.web.ruts.config.ActionExecute;
-import org.lastaflute.web.ruts.config.ActionFormMeta;
 import org.lastaflute.web.ruts.config.ModuleConfig;
 import org.lastaflute.web.ruts.multipart.MultipartFormFile;
 import org.lastaflute.web.util.LaModuleConfigUtil;
@@ -169,19 +167,19 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     //                                                                      ==============
     protected ActionDocMeta createActionDocMeta(ActionExecute execute) {
         final ActionDocMeta actionDocMeta = new ActionDocMeta();
-        final Class<?> componentClass = execute.getActionMapping().getActionDef().getComponentClass();
-        final UrlChain urlChain = new UrlChain(componentClass);
+        final Class<?> actionClass = execute.getActionMapping().getActionDef().getComponentClass();
+        final UrlChain urlChain = new UrlChain(actionClass);
         final String urlPattern = execute.getPreparedUrlPattern().getResolvedUrlPattern();
         if (!"index".equals(urlPattern)) {
             urlChain.moreUrl(urlPattern);
         }
 
         // action item
-        actionDocMeta.setUrl(getActionPathResolver().toActionUrl(componentClass, urlChain));
+        actionDocMeta.setUrl(getActionPathResolver().toActionUrl(actionClass, urlChain));
 
         // class item
-        final Method method = execute.getExecuteMethod();
-        final Class<?> methodDeclaringClass = method.getDeclaringClass(); // basically same as componentClass
+        final Method executeMethod = execute.getExecuteMethod();
+        final Class<?> methodDeclaringClass = executeMethod.getDeclaringClass(); // basically same as componentClass
         actionDocMeta.setType(methodDeclaringClass);
         actionDocMeta.setTypeName(adjustTypeName(methodDeclaringClass));
         actionDocMeta.setSimpleTypeName(adjustSimpleTypeName(methodDeclaringClass));
@@ -203,40 +201,37 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         }).collect(Collectors.toList()));
 
         // method item
-        actionDocMeta.setMethodName(method.getName());
+        actionDocMeta.setMethodName(executeMethod.getName());
 
         // annotation item
         final List<Annotation> annotationList = DfCollectionUtil.newArrayList();
         annotationList.addAll(Arrays.asList(methodDeclaringClass.getAnnotations()));
-        annotationList.addAll(Arrays.asList(method.getAnnotations()));
+        annotationList.addAll(Arrays.asList(executeMethod.getAnnotations()));
         actionDocMeta.setAnnotationTypeList(annotationList); // contains both action and execute method
         actionDocMeta.setAnnotationList(analyzeAnnotationList(annotationList));
 
         // in/out item (parameter, form, return)
-        final List<TypeDocMeta> parameterTypeDocMetaList = Arrays.stream(method.getParameters()).filter(parameter -> {
+        final List<TypeDocMeta> parameterTypeDocMetaList = DfCollectionUtil.newArrayList();
+        Arrays.stream(executeMethod.getParameters()).filter(parameter -> {
             return !(execute.getFormMeta().isPresent() && execute.getFormMeta().get().getFormType().equals(parameter.getType()));
-        }).map(parameter -> { // except form parameter here
+        }).forEach(parameter -> { // except form parameter here
             final StringBuilder builder = new StringBuilder();
             builder.append("{").append(parameter.getName()).append("}");
             actionDocMeta.setUrl(actionDocMeta.getUrl().replaceFirst("\\{\\}", builder.toString()));
-            return analyzeMethodParameter(parameter);
-        }).collect(Collectors.toList());
-        actionDocMeta.setParameterTypeDocMetaList(parameterTypeDocMetaList);
-        execute.getFormMeta().ifPresent(lastafluteFormMeta -> {
-            actionDocMeta.setFormTypeDocMeta(analyzeFormClass(lastafluteFormMeta));
+            parameterTypeDocMetaList.add(analyzeMethodParameter(parameter));
         });
-        actionDocMeta.setReturnTypeDocMeta(analyzeReturnClass(method));
+        actionDocMeta.setParameterTypeDocMetaList(parameterTypeDocMetaList);
+        analyzeFormClass(execute).ifPresent(formTypeDocMeta -> {
+                actionDocMeta.setFormTypeDocMeta(formTypeDocMeta);
+        });
+        actionDocMeta.setReturnTypeDocMeta(analyzeReturnClass(executeMethod));
 
         // extension item (url, return, comment...)
         sourceParserReflector.ifPresent(sourceParserReflector -> {
-            sourceParserReflector.reflect(actionDocMeta, method);
+            sourceParserReflector.reflect(actionDocMeta, executeMethod);
         });
 
         return actionDocMeta;
-    }
-
-    protected ActionPathResolver getActionPathResolver() {
-        return ContainerUtil.getComponent(ActionPathResolver.class);
     }
 
     // ===================================================================================
@@ -266,25 +261,27 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     // -----------------------------------------------------
     //                                          Analyze Form
     //                                          ------------
-    protected TypeDocMeta analyzeFormClass(ActionFormMeta lastafluteFormMeta) {
-        final TypeDocMeta formDocMeta = new TypeDocMeta();
-        lastafluteFormMeta.getListFormParameterParameterizedType().ifPresent(type -> {
-            formDocMeta.setType(lastafluteFormMeta.getFormType());
-            formDocMeta.setTypeName(adjustTypeName(type));
-            formDocMeta.setSimpleTypeName(adjustSimpleTypeName(type));
-        }).orElse(() -> {
-            formDocMeta.setType(lastafluteFormMeta.getFormType());
-            formDocMeta.setTypeName(adjustTypeName(lastafluteFormMeta.getFormType()));
-            formDocMeta.setSimpleTypeName(adjustSimpleTypeName(lastafluteFormMeta.getFormType()));
+    protected OptionalThing<TypeDocMeta> analyzeFormClass(ActionExecute execute) {
+        return execute.getFormMeta().map(lastafluteFormMeta -> {
+            final TypeDocMeta formDocMeta = new TypeDocMeta();
+            lastafluteFormMeta.getListFormParameterParameterizedType().ifPresent(type -> {
+                formDocMeta.setType(lastafluteFormMeta.getFormType());
+                formDocMeta.setTypeName(adjustTypeName(type));
+                formDocMeta.setSimpleTypeName(adjustSimpleTypeName(type));
+            }).orElse(() -> {
+                formDocMeta.setType(lastafluteFormMeta.getFormType());
+                formDocMeta.setTypeName(adjustTypeName(lastafluteFormMeta.getFormType()));
+                formDocMeta.setSimpleTypeName(adjustSimpleTypeName(lastafluteFormMeta.getFormType()));
+            });
+            final Class<?> formType = lastafluteFormMeta.getListFormParameterGenericType().orElse(lastafluteFormMeta.getFormType());
+            final Map<String, Type> genericParameterTypesMap = DfCollectionUtil.newLinkedHashMap(); // #question can be emptyList()? by jflute
+            final List<TypeDocMeta> propertyDocMetaList = analyzeProperties(formType, genericParameterTypesMap, depth);
+            formDocMeta.setNestTypeDocMetaList(propertyDocMetaList);
+            sourceParserReflector.ifPresent(sourceParserReflector -> {
+                sourceParserReflector.reflect(formDocMeta, formType);
+            });
+            return formDocMeta;
         });
-        final Class<?> formType = lastafluteFormMeta.getListFormParameterGenericType().orElse(lastafluteFormMeta.getFormType());
-        final Map<String, Type> genericParameterTypesMap = DfCollectionUtil.newLinkedHashMap(); // #question can be emptyList()? by jflute
-        final List<TypeDocMeta> propertyDocMetaList = analyzeProperties(formType, genericParameterTypesMap, depth);
-        formDocMeta.setNestTypeDocMetaList(propertyDocMetaList);
-        sourceParserReflector.ifPresent(sourceParserReflector -> {
-            sourceParserReflector.reflect(formDocMeta, formType);
-        });
-        return formDocMeta;
     }
 
     // -----------------------------------------------------
@@ -298,6 +295,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         returnDocMeta.setGenericType(DfReflectionUtil.getGenericFirstClass(method.getGenericReturnType()));
         returnDocMeta.setAnnotationTypeList(Arrays.asList(method.getAnnotatedReturnType().getAnnotations()));
         returnDocMeta.setAnnotationList(analyzeAnnotationList(returnDocMeta.getAnnotationTypeList()));
+        derivedManualReturnClass(method, returnDocMeta);
 
         Class<?> returnClass = returnDocMeta.getGenericType();
         if (returnClass != null) { // e.g. List<String>, Sea<Land>
@@ -328,6 +326,9 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         }
 
         return returnDocMeta;
+    }
+
+    protected void derivedManualReturnClass(Method method, TypeDocMeta returnDocMeta) {
     }
 
     protected List<Class<?>> getNativeClassList() {
@@ -512,24 +513,17 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         if (clazz.getSimpleName().endsWith("Form")) {
             return field.getName();
         }
-        final JsonManager jsonManager = ContainerUtil.getComponent(JsonManager.class);
-        if (!(jsonManager instanceof SimpleJsonManager)) { // basically no way
-            return field.getName();
-        }
-        final String fieldName = LaDocReflectionUtil.getNoException(() -> {
-            return ((SimpleJsonManager) jsonManager).getJsonMappingOption().flatMap(jsonMappingOption -> {
-                return jsonMappingOption.getFieldNaming().map(naming -> {
-                    if (naming == JsonFieldNaming.IDENTITY) {
-                        return FieldNamingPolicy.IDENTITY.translateName(field);
-                    } else if (naming == JsonFieldNaming.CAMEL_TO_LOWER_SNAKE) {
-                        return FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES.translateName(field);
-                    } else {
-                        return field.getName();
-                    }
-                });
-            }).orElse(null); // getNoException() cannot handle optional
-        });
-        return fieldName != null ? fieldName : field.getName();
+        return getApplicationJsonMappingOption().flatMap(jsonMappingOption -> {
+            return jsonMappingOption.getFieldNaming().map(naming -> {
+                if (naming == JsonFieldNaming.IDENTITY) {
+                    return FieldNamingPolicy.IDENTITY.translateName(field);
+                } else if (naming == JsonFieldNaming.CAMEL_TO_LOWER_SNAKE) {
+                    return FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES.translateName(field);
+                } else {
+                    return field.getName();
+                }
+            });
+        }).orElse(field.getName());
     }
 
     // ===================================================================================
@@ -589,19 +583,14 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     protected List<String> findActionComponentNameList() {
         final List<String> componentNameList = DfCollectionUtil.newArrayList();
         final LaContainer container = getRootContainer();
-        srcDirList.forEach(srcDir -> {
-            if (!Paths.get(srcDir).toFile().exists()) {
-                return;
-            }
+        srcDirList.stream().filter(srcDir -> Paths.get(srcDir).toFile().exists()).forEach(srcDir -> {
             try (Stream<Path> stream = Files.find(Paths.get(srcDir), Integer.MAX_VALUE, (path, attr) -> {
                 return path.toString().endsWith("Action.java");
             })) {
-                stream.forEach(path -> {
+                stream.sorted().map(path -> {
                     final String className = extractActionClassName(path, srcDir);
-                    final Class<?> clazz = DfReflectionUtil.forName(className);
-                    if (clazz.isInterface() || Modifier.isAbstract(clazz.getModifiers())) {
-                        return;
-                    }
+                    return DfReflectionUtil.forName(className);
+                }).filter(clazz -> !clazz.isInterface() && !Modifier.isAbstract(clazz.getModifiers())).forEach(clazz -> {
                     final String componentName = container.getComponentDef(clazz).getComponentName();
                     if (componentName != null && !componentNameList.contains(componentName)) {
                         componentNameList.add(componentName);
@@ -621,10 +610,6 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         return componentNameList;
     }
 
-    protected LaContainer getRootContainer() {
-        return SingletonLaContainerFactory.getContainer().getRoot();
-    }
-
     protected String extractActionClassName(Path path, String srcDir) { // for forName()
         String className = DfStringUtil.substringFirstRear(path.toFile().getAbsolutePath(), new File(srcDir).getAbsolutePath());
         if (className.startsWith(File.separator)) {
@@ -632,5 +617,24 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         }
         className = DfStringUtil.substringLastFront(className, ".java").replace(File.separatorChar, '.');
         return className;
+    }
+
+    // ===================================================================================
+    //                                                                        Small Helper
+    //                                                                        ============
+    protected DocumentGeneratorFactory createDocumentGeneratorFactory() {
+        return new DocumentGeneratorFactory();
+    }
+
+    protected LaContainer getRootContainer() {
+        return SingletonLaContainerFactory.getContainer().getRoot();
+    }
+
+    protected ActionPathResolver getActionPathResolver() {
+        return ContainerUtil.getComponent(ActionPathResolver.class);
+    }
+
+    protected OptionalThing<JsonMappingOption> getApplicationJsonMappingOption() {
+        return createDocumentGeneratorFactory().getApplicationJsonMappingOption();
     }
 }

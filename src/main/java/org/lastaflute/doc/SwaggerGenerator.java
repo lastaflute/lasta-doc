@@ -35,11 +35,14 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
@@ -54,16 +57,16 @@ import org.dbflute.util.DfStringUtil;
 import org.dbflute.util.DfTypeUtil;
 import org.hibernate.validator.constraints.Length;
 import org.lastaflute.core.direction.AccessibleConfig;
-import org.lastaflute.core.json.JsonManager;
-import org.lastaflute.core.json.SimpleJsonManager;
-import org.lastaflute.core.json.engine.GsonJsonEngine;
+import org.lastaflute.core.json.JsonMappingOption;
+import org.lastaflute.core.json.annotation.JsonDatePattern;
+import org.lastaflute.core.json.engine.RealJsonEngine;
 import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.di.helper.misc.ParameterizedRef;
 import org.lastaflute.di.util.tiger.Tuple3;
 import org.lastaflute.doc.generator.ActionDocumentGenerator;
+import org.lastaflute.doc.generator.DocumentGeneratorFactory;
 import org.lastaflute.doc.meta.ActionDocMeta;
 import org.lastaflute.doc.meta.TypeDocMeta;
-import org.lastaflute.doc.util.LaDocReflectionUtil;
 import org.lastaflute.doc.web.LaActionSwaggerable;
 import org.lastaflute.web.response.ActionResponse;
 import org.lastaflute.web.response.HtmlResponse;
@@ -181,7 +184,7 @@ public class SwaggerGenerator {
     //                                                                              ======
     // basically called by unit test
     public void saveSwaggerMeta(LaActionSwaggerable swaggerable) {
-        final String json = createJsonParser().toJson(swaggerable.json().getJsonResult());
+        final String json = createJsonEngine().toJson(swaggerable.json().getJsonResult());
 
         final Path path = Paths.get(getLastaDocDir(), "swagger.json");
         final Path parentPath = path.getParent();
@@ -213,7 +216,7 @@ public class SwaggerGenerator {
                 InputStreamReader inputStreamReader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
                 BufferedReader bufferedReader = new BufferedReader(inputStreamReader)) {
             String json = DfResourceUtil.readText(bufferedReader);
-            return OptionalThing.of(getJsonManager().fromJsonParameteried(json, new ParameterizedRef<Map<String, Object>>() {
+            return OptionalThing.of(createJsonEngine().fromJsonParameteried(json, new ParameterizedRef<Map<String, Object>>() {
             }.getType()));
         } catch (IOException e) {
             throw new IllegalStateException("Failed to read the json to the file: " + swaggerJsonFilePath, e);
@@ -256,9 +259,9 @@ public class SwaggerGenerator {
 
     protected Map<String, String> createSwaggerInfoMap() {
         Map<String, String> swaggerInfoMap = DfCollectionUtil.newLinkedHashMap();
-        String domainName = getAccessibleConfig().get("domain.name");
-        swaggerInfoMap.put("title", domainName);
-        swaggerInfoMap.put("description", domainName);
+        String title = Objects.toString(getAccessibleConfig().get("domain.title"), getAccessibleConfig().get("domain.name"));
+        swaggerInfoMap.put("title", title);
+        swaggerInfoMap.put("description", title);
         swaggerInfoMap.put("version", "1.0.0");
         return swaggerInfoMap;
     }
@@ -373,7 +376,7 @@ public class SwaggerGenerator {
     //   }
     // },
     //
-    protected void setupSwaggerPathMap(Map<String, Map<String, Object>> swaggerPathMap // map of top-level paths 
+    protected void setupSwaggerPathMap(Map<String, Map<String, Object>> swaggerPathMap // map of top-level paths
             , Map<String, Map<String, Object>> swaggerDefinitionsMap // map of top-level definitions
             , List<Map<String, Object>> swaggerTagList) { // top-level tags
         createActionDocumentGenerator().generateActionDocMetaList().stream().forEach(actiondocMeta -> {
@@ -381,11 +384,11 @@ public class SwaggerGenerator {
         });
     }
 
-    protected void doSetupSwaggerPathMap(Map<String, Map<String, Object>> swaggerPathMap // map of top-level paths 
+    protected void doSetupSwaggerPathMap(Map<String, Map<String, Object>> swaggerPathMap // map of top-level paths
             , Map<String, Map<String, Object>> swaggerDefinitionsMap // map of top-level definitions
             , List<Map<String, Object>> swaggerTagList // top-level tags
-            , ActionDocMeta actiondocMeta) { // document meta of current action
-        final String actionUrl = actiondocMeta.getUrl();
+            , ActionDocMeta actionDocMeta) { // document meta of current action
+        final String actionUrl = actionDocMeta.getUrl();
 
         // arrange swaggerUrlMap in swaggerPathMap if needs
         if (!swaggerPathMap.containsKey(actionUrl)) { // first action for the URL
@@ -395,17 +398,14 @@ public class SwaggerGenerator {
 
         // "/signin/": {
         //   "post": {
-        final String httpMethod = extractHttpMethod(actiondocMeta);
+        final String httpMethod = extractHttpMethod(actionDocMeta);
         final Map<String, Object> swaggerHttpMethodMap = DfCollectionUtil.newLinkedHashMap();
-        {
-            final Map<String, Object> swaggerUrlMap = swaggerPathMap.get(actionUrl);
-            swaggerUrlMap.put(httpMethod, swaggerHttpMethodMap);
-        }
+        swaggerPathMap.get(actionUrl).put(httpMethod, swaggerHttpMethodMap);
 
         //     "summary": "@author jflute",
         //     "description": "@author jflute",
-        swaggerHttpMethodMap.put("summary", actiondocMeta.getDescription());
-        swaggerHttpMethodMap.put("description", actiondocMeta.getDescription());
+        swaggerHttpMethodMap.put("summary", actionDocMeta.getDescription());
+        swaggerHttpMethodMap.put("description", actionDocMeta.getDescription());
 
         //     "parameters": [
         //       {
@@ -418,21 +418,26 @@ public class SwaggerGenerator {
         //       }
         //     ],
         final List<Map<String, Object>> parameterMapList = DfCollectionUtil.newArrayList();
-        parameterMapList.addAll(actiondocMeta.getParameterTypeDocMetaList().stream().map(typeDocMeta -> {
+        final List<String> optionalPathNameList = DfCollectionUtil.newArrayList();
+        parameterMapList.addAll(actionDocMeta.getParameterTypeDocMetaList().stream().map(typeDocMeta -> {
             final Map<String, Object> parameterMap = toParameterMap(typeDocMeta, swaggerDefinitionsMap);
             parameterMap.put("in", "path");
-            if (!OptionalThing.class.isAssignableFrom(typeDocMeta.getType())) {
-                parameterMap.put("required", true);
+            if (parameterMap.containsKey("example")) {
+                parameterMap.put("default", parameterMap.get("example"));
+                parameterMap.remove("example");
             }
-            // TODO p1us2er0 Swagger path parameters are always required. (2017/10/12)
+            // p1us2er0 Swagger path parameters are always required. (2017/10/12)
             // If path parameter is Option, define Path separately.
             // https://stackoverflow.com/questions/45549663/swagger-schema-error-should-not-have-additional-properties
             parameterMap.put("required", true);
+            if (OptionalThing.class.isAssignableFrom(typeDocMeta.getType())) {
+                optionalPathNameList.add(typeDocMeta.getName());
+            }
             return parameterMap;
         }).collect(Collectors.toList()));
 
-        if (actiondocMeta.getFormTypeDocMeta() != null) {
-            if (actiondocMeta.getFormTypeDocMeta().getTypeName().endsWith("Form")) {
+        if (actionDocMeta.getFormTypeDocMeta() != null) {
+            if (actionDocMeta.getFormTypeDocMeta().getTypeName().endsWith("Form")) {
                 //     "consumes": [
                 //       "application/x-www-form-urlencoded"
                 //     ],
@@ -445,10 +450,18 @@ public class SwaggerGenerator {
                 //       ...
                 //     ],
                 swaggerHttpMethodMap.put("consumes", Arrays.asList("application/x-www-form-urlencoded"));
-                parameterMapList.addAll(actiondocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(typeDocMeta -> {
+                parameterMapList.addAll(actionDocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(typeDocMeta -> {
                     final Map<String, Object> parameterMap = toParameterMap(typeDocMeta, swaggerDefinitionsMap);
                     parameterMap.put("name", typeDocMeta.getName());
                     parameterMap.put("in", "get".equals(httpMethod) ? "query" : "formData");
+                    if (parameterMap.containsKey("example")) {
+                        parameterMap.put("default", parameterMap.get("example"));
+                        parameterMap.remove("example");
+                    }
+                    parameterMap.put("required", typeDocMeta.getAnnotationTypeList().stream().anyMatch(annotationType -> {
+                        return getRequiredAnnotationList().stream()
+                                .anyMatch(requiredAnnotation -> requiredAnnotation.isAssignableFrom(annotationType.getClass()));
+                    }));
                     return parameterMap;
                 }).collect(Collectors.toList()));
             } else {
@@ -457,29 +470,42 @@ public class SwaggerGenerator {
                 //     ],
                 swaggerHttpMethodMap.put("consumes", Arrays.asList("application/json"));
                 final Map<String, Object> parameterMap = DfCollectionUtil.newLinkedHashMap();
-                parameterMap.put("name", actiondocMeta.getFormTypeDocMeta().getSimpleTypeName());
+                parameterMap.put("name", actionDocMeta.getFormTypeDocMeta().getSimpleTypeName());
                 parameterMap.put("in", "body");
                 parameterMap.put("required", true);
                 final Map<String, Object> schema = DfCollectionUtil.newLinkedHashMap();
                 schema.put("type", "object");
-                final List<String> requiredPropertyNameList = derivedRequiredPropertyNameList(actiondocMeta.getFormTypeDocMeta());
+                final List<String> requiredPropertyNameList = derivedRequiredPropertyNameList(actionDocMeta.getFormTypeDocMeta());
                 if (!requiredPropertyNameList.isEmpty()) {
                     schema.put("required", requiredPropertyNameList);
                 }
-                schema.put("properties", actiondocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(typeDocMeta -> {
-                    return toParameterMap(typeDocMeta, swaggerDefinitionsMap);
+                schema.put("properties", actionDocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(propertyDocMeta -> {
+                    return toParameterMap(propertyDocMeta, swaggerDefinitionsMap);
                 }).collect(Collectors.toMap(key -> key.get("name"), value -> {
-                    final LinkedHashMap<String, Object> property = DfCollectionUtil.newLinkedHashMap(value);
-                    property.remove("name");
-                    return property;
+                    final LinkedHashMap<String, Object> propertyMap = DfCollectionUtil.newLinkedHashMap(value);
+                    propertyMap.remove("name");
+                    return propertyMap;
                 }, (u, v) -> v, LinkedHashMap::new)));
 
-                swaggerDefinitionsMap.put(derivedDefinitionName(actiondocMeta.getFormTypeDocMeta()), schema);
+                swaggerDefinitionsMap.put(derivedDefinitionName(actionDocMeta.getFormTypeDocMeta()), schema);
 
                 //         "schema": {
                 //           "$ref": "#/definitions/org.docksidestage.app.web.signin.SigninBody"
                 //         }
-                parameterMap.put("schema", DfCollectionUtil.newLinkedHashMap("$ref", prepareSwaggerMapRefDefinitions(actiondocMeta)));
+                // or
+                //         "schema": {
+                //           "type": "array",
+                //           "items": {
+                //             "$ref": "#/definitions/org.docksidestage.app.web.wx.remogen.bean.simple.SuperSimpleBody"
+                //           }
+                //         }
+                LinkedHashMap<String, String> schemaMap =
+                        DfCollectionUtil.newLinkedHashMap("$ref", prepareSwaggerMapRefDefinitions(actionDocMeta));
+                if (!Iterable.class.isAssignableFrom(actionDocMeta.getFormTypeDocMeta().getType())) {
+                    parameterMap.put("schema", schemaMap);
+                } else {
+                    parameterMap.put("schema", DfCollectionUtil.newLinkedHashMap("type", "array", "items", schemaMap));
+                }
                 parameterMapList.add(parameterMap);
             }
         }
@@ -489,7 +515,7 @@ public class SwaggerGenerator {
         //     "tags": [
         //       "signin"
         //     ],
-        swaggerHttpMethodMap.put("tags", prepareSwaggerMapTags(actiondocMeta));
+        swaggerHttpMethodMap.put("tags", prepareSwaggerMapTags(actionDocMeta));
         final String tag = DfStringUtil.substringFirstFront(actionUrl.replaceAll("^/", ""), "/");
 
         // reflect the tags to top-level tags
@@ -499,11 +525,45 @@ public class SwaggerGenerator {
 
         //     "responses": {
         //       ...
-        prepareSwaggerMapResponseMap(swaggerHttpMethodMap, actiondocMeta, swaggerDefinitionsMap);
+        prepareSwaggerMapResponseMap(swaggerHttpMethodMap, actionDocMeta, swaggerDefinitionsMap);
+
+        if (!optionalPathNameList.isEmpty()) {
+            doSetupSwaggerPathMapForOptionalPath(swaggerPathMap, actionDocMeta, optionalPathNameList);
+        }
     }
 
-    protected String extractHttpMethod(ActionDocMeta actiondocMeta) {
-        final Matcher matcher = HTTP_METHOD_PATTERN.matcher(actiondocMeta.getMethodName());
+    protected void doSetupSwaggerPathMapForOptionalPath(Map<String, Map<String, Object>> swaggerPathMap, ActionDocMeta actionDocMeta,
+            List<String> optionalPathNameList) {
+        final String actionUrl = actionDocMeta.getUrl();
+        final String httpMethod = extractHttpMethod(actionDocMeta);
+        RealJsonEngine jsonEngine = createJsonEngine();
+        String json = jsonEngine.toJson(swaggerPathMap.get(actionUrl).get(httpMethod));
+
+        IntStream.range(0, optionalPathNameList.size()).forEach(index -> {
+            List<String> deleteOptionalPathNameList = optionalPathNameList.subList(index, optionalPathNameList.size());
+            String deleteOptionalPathNameUrl = deleteOptionalPathNameList.stream().reduce(actionUrl, (aactionUrl, optionalPathName) -> {
+                return aactionUrl.replaceAll("/\\{" + optionalPathName + "\\}", "");
+            });
+            // arrange swaggerUrlMap in swaggerPathMap if needs
+            if (!swaggerPathMap.containsKey(deleteOptionalPathNameUrl)) { // first action for the URL
+                swaggerPathMap.put(deleteOptionalPathNameUrl, DfCollectionUtil.newLinkedHashMap());
+            }
+            Map<String, Object> swaggerHttpMethodMap = jsonEngine.fromJsonParameteried(json, new ParameterizedRef<Map<String, Object>>() {
+            }.getType());
+            @SuppressWarnings("unchecked")
+            final List<Map<String, Object>> parameterMapList =
+                    ((List<Map<String, Object>>) swaggerHttpMethodMap.get("parameters")).stream().filter(parameter -> {
+                        return !deleteOptionalPathNameList.contains(parameter.get("name"));
+                    }).collect(Collectors.toList());
+            swaggerHttpMethodMap.put("parameters", parameterMapList);
+            swaggerPathMap.get(deleteOptionalPathNameUrl).put(httpMethod, swaggerHttpMethodMap);
+        });
+        Map<String, Object> swaggerUrlMap = swaggerPathMap.remove(actionUrl);
+        swaggerPathMap.put(actionUrl, swaggerUrlMap);
+    }
+
+    protected String extractHttpMethod(ActionDocMeta actionDocMeta) {
+        final Matcher matcher = HTTP_METHOD_PATTERN.matcher(actionDocMeta.getMethodName());
         return matcher.find() ? matcher.group(1) : "post";
     }
 
@@ -598,7 +658,7 @@ public class SwaggerGenerator {
     //                                                                       Parameter Map
     //                                                                       =============
     protected Map<String, Object> toParameterMap(TypeDocMeta typeDocMeta, Map<String, Map<String, Object>> definitionsMap) {
-        final Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> typeMap = createTypeMap();
+        final Map<Class<?>, Tuple3<String, String, BiFunction<TypeDocMeta, Object, Object>>> typeMap = createTypeMap();
         final Class<?> keepType = typeDocMeta.getType();
         if (typeDocMeta.getGenericType() != null && (ActionResponse.class.isAssignableFrom(typeDocMeta.getType())
                 || OptionalThing.class.isAssignableFrom(typeDocMeta.getType()))) {
@@ -610,10 +670,8 @@ public class SwaggerGenerator {
         if (DfStringUtil.is_NotNull_and_NotEmpty(typeDocMeta.getDescription())) {
             parameterMap.put("description", typeDocMeta.getDescription());
         }
-        // TODO p1us2er0 required process. (2017/10/12)
-        // parameterMap.put("required", xxx);
         if (typeMap.containsKey(typeDocMeta.getType())) {
-            final Tuple3<String, String, Function<Object, Object>> swaggerType = typeMap.get(typeDocMeta.getType());
+            final Tuple3<String, String, BiFunction<TypeDocMeta, Object, Object>> swaggerType = typeMap.get(typeDocMeta.getType());
             parameterMap.put("type", swaggerType.getValue1());
             final String format = swaggerType.getValue2();
             if (DfStringUtil.is_NotNull_and_NotEmpty(format)) {
@@ -663,7 +721,7 @@ public class SwaggerGenerator {
         });
 
         deriveDefaultValue(typeDocMeta).ifPresent(defaultValue -> {
-            parameterMap.put("default", defaultValue);
+            parameterMap.put("example", defaultValue);
         });
 
         typeDocMeta.setType(keepType);
@@ -671,7 +729,7 @@ public class SwaggerGenerator {
     }
 
     protected void setupBeanList(TypeDocMeta typeDocMeta, Map<String, Map<String, Object>> definitionsMap,
-            Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> typeMap, Map<String, Object> schemaMap) {
+            Map<Class<?>, Tuple3<String, String, BiFunction<TypeDocMeta, Object, Object>>> typeMap, Map<String, Object> schemaMap) {
         schemaMap.put("type", "array");
         if (!typeDocMeta.getNestTypeDocMetaList().isEmpty()) {
             final String definition = putDefinition(definitionsMap, typeDocMeta);
@@ -680,7 +738,7 @@ public class SwaggerGenerator {
             final Map<String, String> items = DfCollectionUtil.newLinkedHashMap();
             final Class<?> genericType = typeDocMeta.getGenericType();
             if (genericType != null) {
-                final Tuple3<String, String, Function<Object, Object>> swaggerType = typeMap.get(genericType);
+                final Tuple3<String, String, BiFunction<TypeDocMeta, Object, Object>> swaggerType = typeMap.get(genericType);
                 if (swaggerType != null) {
                     items.put("type", swaggerType.getValue1());
                     final String format = swaggerType.getValue2();
@@ -751,32 +809,36 @@ public class SwaggerGenerator {
         });
     }
 
-    protected Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> createTypeMap() {
-        final Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> typeMap = DfCollectionUtil.newLinkedHashMap();
-        typeMap.put(boolean.class, Tuple3.tuple3("boolean", null, value -> DfTypeUtil.toBoolean(value)));
-        typeMap.put(byte.class, Tuple3.tuple3("byte", null, value -> DfTypeUtil.toByte(value)));
-        typeMap.put(int.class, Tuple3.tuple3("integer", "int32", value -> DfTypeUtil.toInteger(value)));
-        typeMap.put(long.class, Tuple3.tuple3("integer", "int64", value -> DfTypeUtil.toLong(value)));
-        typeMap.put(float.class, Tuple3.tuple3("integer", "float", value -> DfTypeUtil.toFloat(value)));
-        typeMap.put(double.class, Tuple3.tuple3("integer", "double", value -> DfTypeUtil.toDouble(value)));
-        typeMap.put(Boolean.class, Tuple3.tuple3("boolean", null, value -> DfTypeUtil.toBoolean(value)));
-        typeMap.put(Byte.class, Tuple3.tuple3("boolean", null, value -> DfTypeUtil.toByte(value)));
-        typeMap.put(Integer.class, Tuple3.tuple3("integer", "int32", value -> DfTypeUtil.toInteger(value)));
-        typeMap.put(Long.class, Tuple3.tuple3("integer", "int64", value -> DfTypeUtil.toLong(value)));
-        typeMap.put(Float.class, Tuple3.tuple3("integer", "float", value -> DfTypeUtil.toFloat(value)));
-        typeMap.put(Double.class, Tuple3.tuple3("integer", "double", value -> DfTypeUtil.toDouble(value)));
-        typeMap.put(String.class, Tuple3.tuple3("string", null, value -> value));
-        typeMap.put(byte[].class, Tuple3.tuple3("string", "byte", value -> value));
-        typeMap.put(Byte[].class, Tuple3.tuple3("string", "byte", value -> value));
-        typeMap.put(Date.class,
-                Tuple3.tuple3("string", "date", value -> value == null ? getLocalDateFormatter().format(getDefaultLocalDate()) : value));
-        typeMap.put(LocalDate.class,
-                Tuple3.tuple3("string", "date", value -> value == null ? getLocalDateFormatter().format(getDefaultLocalDate()) : value));
-        typeMap.put(LocalDateTime.class, Tuple3.tuple3("string", "date-time",
-                value -> value == null ? getLocalDateTimeFormatter().format(getDefaultLocalDateTime()) : value));
-        typeMap.put(LocalTime.class,
-                Tuple3.tuple3("string", null, value -> value == null ? getLocalTimeFormatter().format(getDefaultLocalTime()) : value));
-        typeMap.put(MultipartFormFile.class, Tuple3.tuple3("binary", null, value -> value));
+    protected Map<Class<?>, Tuple3<String, String, BiFunction<TypeDocMeta, Object, Object>>> createTypeMap() {
+        final Map<Class<?>, Tuple3<String, String, BiFunction<TypeDocMeta, Object, Object>>> typeMap = DfCollectionUtil.newLinkedHashMap();
+        typeMap.put(boolean.class, Tuple3.tuple3("boolean", null, (typeDocMeta, value) -> DfTypeUtil.toBoolean(value)));
+        typeMap.put(byte.class, Tuple3.tuple3("byte", null, (typeDocMeta, value) -> DfTypeUtil.toByte(value)));
+        typeMap.put(int.class, Tuple3.tuple3("integer", "int32", (typeDocMeta, value) -> DfTypeUtil.toInteger(value)));
+        typeMap.put(long.class, Tuple3.tuple3("integer", "int64", (typeDocMeta, value) -> DfTypeUtil.toLong(value)));
+        typeMap.put(float.class, Tuple3.tuple3("integer", "float", (typeDocMeta, value) -> DfTypeUtil.toFloat(value)));
+        typeMap.put(double.class, Tuple3.tuple3("integer", "double", (typeDocMeta, value) -> DfTypeUtil.toDouble(value)));
+        typeMap.put(Boolean.class, Tuple3.tuple3("boolean", null, (typeDocMeta, value) -> DfTypeUtil.toBoolean(value)));
+        typeMap.put(Byte.class, Tuple3.tuple3("boolean", null, (typeDocMeta, value) -> DfTypeUtil.toByte(value)));
+        typeMap.put(Integer.class, Tuple3.tuple3("integer", "int32", (typeDocMeta, value) -> DfTypeUtil.toInteger(value)));
+        typeMap.put(Long.class, Tuple3.tuple3("integer", "int64", (typeDocMeta, value) -> DfTypeUtil.toLong(value)));
+        typeMap.put(Float.class, Tuple3.tuple3("integer", "float", (typeDocMeta, value) -> DfTypeUtil.toFloat(value)));
+        typeMap.put(Double.class, Tuple3.tuple3("integer", "double", (typeDocMeta, value) -> DfTypeUtil.toDouble(value)));
+        typeMap.put(String.class, Tuple3.tuple3("string", null, (typeDocMeta, value) -> value));
+        typeMap.put(byte[].class, Tuple3.tuple3("string", "byte", (typeDocMeta, value) -> value));
+        typeMap.put(Byte[].class, Tuple3.tuple3("string", "byte", (typeDocMeta, value) -> value));
+        typeMap.put(Date.class, Tuple3.tuple3("string", "date", (typeDocMeta, value) -> {
+            return value == null ? getLocalDateFormatter(typeDocMeta).format(getDefaultLocalDate()) : value;
+        }));
+        typeMap.put(LocalDate.class, Tuple3.tuple3("string", "date", (typeDocMeta, value) -> {
+            return value == null ? getLocalDateFormatter(typeDocMeta).format(getDefaultLocalDate()) : value;
+        }));
+        typeMap.put(LocalDateTime.class, Tuple3.tuple3("string", "date-time", (typeDocMeta, value) -> {
+            return value == null ? getLocalDateTimeFormatter(typeDocMeta).format(getDefaultLocalDateTime()) : value;
+        }));
+        typeMap.put(LocalTime.class, Tuple3.tuple3("string", null, (typeDocMeta, value) -> {
+            return value == null ? getLocalTimeFormatter(typeDocMeta).format(getDefaultLocalTime()) : value;
+        }));
+        typeMap.put(MultipartFormFile.class, Tuple3.tuple3("binary", null, (typeDocMeta, value) -> value));
         return typeMap;
     }
 
@@ -807,6 +869,10 @@ public class SwaggerGenerator {
         return new DocumentGenerator();
     }
 
+    protected DocumentGeneratorFactory createDocumentGeneratorFactory() {
+        return new DocumentGeneratorFactory();
+    }
+
     protected ActionDocumentGenerator createActionDocumentGenerator() {
         return createDocumentGenerator().createActionDocumentGenerator();
     }
@@ -827,53 +893,51 @@ public class SwaggerGenerator {
         return LocalTime.from(getDefaultLocalDateTime());
     }
 
-    protected DateTimeFormatter getLocalDateFormatter() {
-        OptionalThing<DateTimeFormatter> localDateFormatter;
-        JsonManager jsonManager = getJsonManager();
-        if (jsonManager instanceof SimpleJsonManager) {
-            localDateFormatter = LaDocReflectionUtil.getNoException(() -> {
-                return ((SimpleJsonManager) jsonManager).getJsonMappingOption()
-                        .flatMap(jsonMappingOption -> jsonMappingOption.getLocalDateFormatter());
-            });
-        } else {
-            localDateFormatter = OptionalThing.empty();
+    protected DateTimeFormatter getLocalDateFormatter(TypeDocMeta typeDocMeta) {
+        Optional<DateTimeFormatter> jsonDatePatternDateTimeFormatter = getJsonDatePatternDateTimeFormatter(typeDocMeta);
+        if (jsonDatePatternDateTimeFormatter.isPresent()) {
+            return jsonDatePatternDateTimeFormatter.get();
         }
-        return localDateFormatter.orElseGet(() -> DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        return getApplicationJsonMappingOption()
+                .flatMap(applicationJsonMappingOption -> applicationJsonMappingOption.getLocalDateFormatter())
+                .orElseGet(() -> DateTimeFormatter.ofPattern("yyyy-MM-dd"));
     }
 
-    protected DateTimeFormatter getLocalDateTimeFormatter() {
-        OptionalThing<DateTimeFormatter> localDateTimeFormatter;
-        JsonManager jsonManager = getJsonManager();
-        if (jsonManager instanceof SimpleJsonManager) {
-            localDateTimeFormatter = LaDocReflectionUtil.getNoException(() -> {
-                return ((SimpleJsonManager) jsonManager).getJsonMappingOption()
-                        .flatMap(jsonMappingOption -> jsonMappingOption.getLocalDateTimeFormatter());
-            });
-        } else {
-            localDateTimeFormatter = OptionalThing.empty();
+    protected DateTimeFormatter getLocalDateTimeFormatter(TypeDocMeta typeDocMeta) {
+        Optional<DateTimeFormatter> jsonDatePatternDateTimeFormatter = getJsonDatePatternDateTimeFormatter(typeDocMeta);
+        if (jsonDatePatternDateTimeFormatter.isPresent()) {
+            return jsonDatePatternDateTimeFormatter.get();
         }
-        return localDateTimeFormatter.orElseGet(() -> DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS"));
+        return getApplicationJsonMappingOption()
+                .flatMap(applicationJsonMappingOption -> applicationJsonMappingOption.getLocalDateTimeFormatter())
+                .orElseGet(() -> DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS"));
     }
 
-    protected DateTimeFormatter getLocalTimeFormatter() {
-        OptionalThing<DateTimeFormatter> localDateTimeFormatter;
-        JsonManager jsonManager = getJsonManager();
-        if (jsonManager instanceof SimpleJsonManager) {
-            localDateTimeFormatter = LaDocReflectionUtil.getNoException(() -> {
-                return ((SimpleJsonManager) jsonManager).getJsonMappingOption()
-                        .flatMap(jsonMappingOption -> jsonMappingOption.getLocalTimeFormatter());
-            });
-        } else {
-            localDateTimeFormatter = OptionalThing.empty();
+    protected DateTimeFormatter getLocalTimeFormatter(TypeDocMeta typeDocMeta) {
+        Optional<DateTimeFormatter> jsonDatePatternDateTimeFormatter = getJsonDatePatternDateTimeFormatter(typeDocMeta);
+        if (jsonDatePatternDateTimeFormatter.isPresent()) {
+            return jsonDatePatternDateTimeFormatter.get();
         }
-        return localDateTimeFormatter.orElseGet(() -> DateTimeFormatter.ofPattern("HH:mm:ss.SSS"));
+        return getApplicationJsonMappingOption()
+                .flatMap(applicationJsonMappingOption -> applicationJsonMappingOption.getLocalTimeFormatter())
+                .orElseGet(() -> DateTimeFormatter.ofPattern("HH:mm:ss.SSS"));
+    }
+
+    protected Optional<DateTimeFormatter> getJsonDatePatternDateTimeFormatter(TypeDocMeta typeDocMeta) {
+        return typeDocMeta.getAnnotationTypeList()
+                .stream()
+                .filter(annotationType -> annotationType instanceof JsonDatePattern)
+                .findFirst()
+                .map(jsonDatePattern -> {
+                    return DateTimeFormatter.ofPattern(((JsonDatePattern) jsonDatePattern).value());
+                });
     }
 
     protected OptionalThing<Object> deriveDefaultValue(TypeDocMeta typeDocMeta) {
-        Map<Class<?>, Tuple3<String, String, Function<Object, Object>>> typeMap = createTypeMap();
+        Map<Class<?>, Tuple3<String, String, BiFunction<TypeDocMeta, Object, Object>>> typeMap = createTypeMap();
         if (typeMap.containsKey(typeDocMeta.getType())) {
-            Tuple3<String, String, Function<Object, Object>> swaggerType = typeMap.get(typeDocMeta.getType());
-            Object defaultValue = swaggerType.getValue3().apply(deriveDefaultValueByComment(typeDocMeta.getComment()));
+            Tuple3<String, String, BiFunction<TypeDocMeta, Object, Object>> swaggerType = typeMap.get(typeDocMeta.getType());
+            Object defaultValue = swaggerType.getValue3().apply(typeDocMeta, deriveDefaultValueByComment(typeDocMeta.getComment()));
             if (defaultValue != null) {
                 return OptionalThing.of(defaultValue);
             }
@@ -888,10 +952,10 @@ public class SwaggerGenerator {
             if (genericType == null) {
                 genericType = String.class;
             }
-            Tuple3<String, String, Function<Object, Object>> swaggerType = typeMap.get(genericType);
+            Tuple3<String, String, BiFunction<TypeDocMeta, Object, Object>> swaggerType = typeMap.get(genericType);
             if (swaggerType != null) {
                 return OptionalThing.of(defaultValueList.stream().map(value -> {
-                    return swaggerType.getValue3().apply(value);
+                    return swaggerType.getValue3().apply(typeDocMeta, value);
                 }).collect(Collectors.toList()));
             }
         } else if (Enum.class.isAssignableFrom(typeDocMeta.getType())) {
@@ -938,22 +1002,19 @@ public class SwaggerGenerator {
     // ===================================================================================
     //                                                                        Small Helper
     //                                                                        ============
-    protected GsonJsonEngine createJsonParser() {
-        return new DocumentGenerator().createJsonParser();
-    }
-
     protected String getLastaDocDir() {
-        return new DocumentGenerator().getLastaDocDir();
+        return createDocumentGeneratorFactory().getLastaDocDir();
     }
 
-    // ===================================================================================
-    //                                                                           Component
-    //                                                                           =========
     protected AccessibleConfig getAccessibleConfig() {
         return ContainerUtil.getComponent(AccessibleConfig.class);
     }
 
-    protected JsonManager getJsonManager() {
-        return ContainerUtil.getComponent(JsonManager.class);
+    protected RealJsonEngine createJsonEngine() {
+        return createDocumentGeneratorFactory().createJsonEngine();
+    }
+
+    protected OptionalThing<JsonMappingOption> getApplicationJsonMappingOption() {
+        return createDocumentGeneratorFactory().getApplicationJsonMappingOption();
     }
 }
