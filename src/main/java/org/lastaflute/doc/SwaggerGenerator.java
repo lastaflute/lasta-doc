@@ -44,6 +44,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
@@ -75,7 +76,6 @@ import org.lastaflute.web.response.StreamResponse;
 import org.lastaflute.web.response.XmlResponse;
 import org.lastaflute.web.ruts.multipart.MultipartFormFile;
 import org.lastaflute.web.util.LaRequestUtil;
-import org.lastaflute.web.util.LaServletContextUtil;
 import org.lastaflute.web.validation.Required;
 
 /**
@@ -267,12 +267,12 @@ public class SwaggerGenerator {
     }
 
     protected List<String> prepareSwaggerMapSchemes() {
-        return Arrays.asList(LaRequestUtil.getRequest().getScheme());
+        return Arrays.asList(getRequest().getScheme());
     }
 
     protected String derivedBasePath(SwaggerOption swaggerOption) {
         StringBuilder basePath = new StringBuilder();
-        basePath.append(LaServletContextUtil.getServletContext().getContextPath() + "/");
+        basePath.append(getRequest().getContextPath() + "/");
         prepareApplicationVersion().ifPresent(applicationVersion -> {
             basePath.append(applicationVersion + "/");
         });
@@ -1008,6 +1008,10 @@ public class SwaggerGenerator {
 
     protected AccessibleConfig getAccessibleConfig() {
         return ContainerUtil.getComponent(AccessibleConfig.class);
+    }
+
+    protected HttpServletRequest getRequest() {
+        return LaRequestUtil.getRequest();
     }
 
     protected RealJsonEngine createJsonEngine() {
