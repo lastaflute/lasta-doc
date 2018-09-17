@@ -14,10 +14,10 @@
 
 	<properties>
 		<lastaflute.version>1.0.0</lastaflute.version>
-		<lasta.job.version>0.5.1</lasta.job.version>
+		<lasta.job.version>0.5.3</lasta.job.version>
 		<servlet.version>3.1.0</servlet.version>
 		<javaparser.version>3.6.6</javaparser.version>
-		<utflute.version>0.8.5</utflute.version>
+		<utflute.version>0.8.8</utflute.version>
 	</properties>
 
 	<licenses>
