@@ -44,6 +44,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
@@ -75,7 +76,6 @@ import org.lastaflute.web.response.StreamResponse;
 import org.lastaflute.web.response.XmlResponse;
 import org.lastaflute.web.ruts.multipart.MultipartFormFile;
 import org.lastaflute.web.util.LaRequestUtil;
-import org.lastaflute.web.util.LaServletContextUtil;
 import org.lastaflute.web.validation.Required;
 
 /**
@@ -267,12 +267,12 @@ public class SwaggerGenerator {
     }
 
     protected List<String> prepareSwaggerMapSchemes() {
-        return Arrays.asList(LaRequestUtil.getRequest().getScheme());
+        return Arrays.asList(getRequest().getScheme());
     }
 
     protected String derivedBasePath(SwaggerOption swaggerOption) {
         StringBuilder basePath = new StringBuilder();
-        basePath.append(LaServletContextUtil.getServletContext().getContextPath() + "/");
+        basePath.append(getRequest().getContextPath() + "/");
         prepareApplicationVersion().ifPresent(applicationVersion -> {
             basePath.append(applicationVersion + "/");
         });
@@ -431,7 +431,7 @@ public class SwaggerGenerator {
             // https://stackoverflow.com/questions/45549663/swagger-schema-error-should-not-have-additional-properties
             parameterMap.put("required", true);
             if (OptionalThing.class.isAssignableFrom(typeDocMeta.getType())) {
-                optionalPathNameList.add(typeDocMeta.getName());
+                optionalPathNameList.add(typeDocMeta.getPublicName());
             }
             return parameterMap;
         }).collect(Collectors.toList()));
@@ -452,7 +452,7 @@ public class SwaggerGenerator {
                 swaggerHttpMethodMap.put("consumes", Arrays.asList("application/x-www-form-urlencoded"));
                 parameterMapList.addAll(actionDocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(typeDocMeta -> {
                     final Map<String, Object> parameterMap = toParameterMap(typeDocMeta, swaggerDefinitionsMap);
-                    parameterMap.put("name", typeDocMeta.getName());
+                    parameterMap.put("name", typeDocMeta.getPublicName());
                     parameterMap.put("in", "get".equals(httpMethod) ? "query" : "formData");
                     if (parameterMap.containsKey("example")) {
                         parameterMap.put("default", parameterMap.get("example"));
@@ -666,7 +666,7 @@ public class SwaggerGenerator {
         }
 
         final Map<String, Object> parameterMap = DfCollectionUtil.newLinkedHashMap();
-        parameterMap.put("name", typeDocMeta.getName());
+        parameterMap.put("name", typeDocMeta.getPublicName());
         if (DfStringUtil.is_NotNull_and_NotEmpty(typeDocMeta.getDescription())) {
             parameterMap.put("description", typeDocMeta.getDescription());
         }
@@ -696,7 +696,7 @@ public class SwaggerGenerator {
                     parameterMap.put("enum", enumMap.stream().map(e -> e.get("code")).collect(Collectors.toList()));
                     String description = typeDocMeta.getDescription();
                     if (DfStringUtil.is_Null_or_Empty(description)) {
-                        description = typeDocMeta.getName();
+                        description = typeDocMeta.getPublicName();
                     }
                     description += ":" + enumMap.stream().map(e -> {
                         return String.format(" * `%s` - %s, %s.", e.get("code"), e.get("name"), e.get("alias"));
@@ -752,6 +752,9 @@ public class SwaggerGenerator {
             }
             schemaMap.put("items", items);
         }
+        if (typeDocMeta.getSimpleTypeName().matches(".*List<.*List<.*")) {
+            schemaMap.put("items", DfCollectionUtil.newLinkedHashMap("type", "array", "items", schemaMap.get("items")));
+        }
     }
 
     protected String putDefinition(Map<String, Map<String, Object>> definitionsMap, TypeDocMeta typeDocMeta) {
@@ -779,7 +782,7 @@ public class SwaggerGenerator {
                 return getRequiredAnnotationList().stream()
                         .anyMatch(requiredAnnotation -> requiredAnnotation.isAssignableFrom(annotationType.getClass()));
             });
-        }).map(nesttypeDocMeta -> nesttypeDocMeta.getName()).collect(Collectors.toList());
+        }).map(nesttypeDocMeta -> nesttypeDocMeta.getPublicName()).collect(Collectors.toList());
     }
 
     protected String derivedDefinitionName(TypeDocMeta typeDocMeta) {
@@ -1008,6 +1011,10 @@ public class SwaggerGenerator {
 
     protected AccessibleConfig getAccessibleConfig() {
         return ContainerUtil.getComponent(AccessibleConfig.class);
+    }
+
+    protected HttpServletRequest getRequest() {
+        return LaRequestUtil.getRequest();
     }
 
     protected RealJsonEngine createJsonEngine() {

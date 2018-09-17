@@ -37,6 +37,9 @@ public class TypeDocMeta {
     /** name. */
     private String name;
 
+    /** public name. */
+    private String publicName;
+
     /** type. */
     private transient Class<?> type;
 
@@ -99,6 +102,14 @@ public class TypeDocMeta {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getPublicName() {
+        return publicName;
+    }
+
+    public void setPublicName(String publicName) {
+        this.publicName = publicName;
     }
 
     public Class<?> getType() {

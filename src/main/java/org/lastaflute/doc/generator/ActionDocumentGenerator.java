@@ -430,13 +430,25 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
             //      }
             //  }
             // _/_/_/_/_/_/_/_/_/_/
-            final Class<?> typeArgumentClass = (Class<?>) ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
-            meta.setNestTypeDocMetaList(analyzeProperties(typeArgumentClass, genericParameterTypesMap, depth - 1));
-
-            // overriding type names that are already set before
-            final String currentTypeName = meta.getTypeName();
-            meta.setTypeName(adjustTypeName(currentTypeName) + "<" + adjustTypeName(typeArgumentClass) + ">");
-            meta.setSimpleTypeName(adjustSimpleTypeName(currentTypeName) + "<" + adjustSimpleTypeName(typeArgumentClass) + ">");
+            Type type = ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
+            if (type instanceof Class<?>) {
+                final Class<?> typeArgumentClass = (Class<?>) type;
+                meta.setNestTypeDocMetaList(analyzeProperties(typeArgumentClass, genericParameterTypesMap, depth - 1));
+                // overriding type names that are already set before
+                final String currentTypeName = meta.getTypeName();
+                meta.setTypeName(adjustTypeName(currentTypeName) + "<" + adjustTypeName(typeArgumentClass) + ">");
+                meta.setSimpleTypeName(adjustSimpleTypeName(currentTypeName) + "<" + adjustSimpleTypeName(typeArgumentClass) + ">");
+            } else if (type instanceof ParameterizedType) {
+                final Class<?> typeArgumentClass = (Class<?>) ((ParameterizedType) type).getActualTypeArguments()[0];
+                meta.setNestTypeDocMetaList(analyzeProperties(typeArgumentClass, genericParameterTypesMap, depth - 1));
+                // overriding type names that are already set before
+                final String currentTypeName = meta.getTypeName();
+                meta.setTypeName(adjustTypeName(currentTypeName) + "<" + adjustTypeName(((ParameterizedType) type).getRawType()) + "<"
+                        + adjustTypeName(typeArgumentClass) + ">>");
+                meta.setSimpleTypeName(
+                        adjustSimpleTypeName(currentTypeName) + "<" + adjustSimpleTypeName(((ParameterizedType) type).getRawType()) + "<"
+                                + adjustSimpleTypeName(typeArgumentClass) + ">>");
+            }
         } else { // e.g. String, Integer, LocalDate, Sea<Mystic>
             // TODO p1us2er0 optimisation, generic handling in analyzePropertyField() (2017/09/26)
             if (field.getGenericType().getTypeName().matches(".*<(.*)>")) { // e.g. Sea<Mystic>
@@ -473,6 +485,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
 
         // necessary to set it after parsing javadoc
         meta.setName(adjustFieldName(propertyOwner, field));
+        meta.setPublicName(adjustPublicFieldName(propertyOwner, field));
         return meta;
     }
 
@@ -509,6 +522,10 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     }
 
     protected String adjustFieldName(Class<?> clazz, Field field) {
+        return field.getName();
+    }
+
+    protected String adjustPublicFieldName(Class<?> clazz, Field field) {
         // TODO p1us2er0 judge accurately in adjustFieldName() (2017/04/20)
         if (clazz.getSimpleName().endsWith("Form")) {
             return field.getName();
