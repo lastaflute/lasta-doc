@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.lastaflute.doc</groupId>
 	<artifactId>lasta-doc</artifactId>
-	<version>0.3.4−RC1</version>
+	<version>0.3.4-RC1</version>
 	<packaging>jar</packaging>
 
 	<name>lasta-doc</name>
