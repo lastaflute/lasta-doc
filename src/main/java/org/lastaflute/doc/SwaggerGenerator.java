@@ -503,7 +503,7 @@ public class SwaggerGenerator {
                 //           }
                 //         }
                 LinkedHashMap<String, String> schemaMap =
-                        DfCollectionUtil.newLinkedHashMap("$ref", encode(prepareSwaggerMapRefDefinitions(actionDocMeta)));
+                        DfCollectionUtil.newLinkedHashMap("$ref", prepareSwaggerMapRefDefinitions(actionDocMeta));
                 if (!Iterable.class.isAssignableFrom(actionDocMeta.getFormTypeDocMeta().getType())) {
                     parameterMap.put("schema", schemaMap);
                 } else {
@@ -571,7 +571,7 @@ public class SwaggerGenerator {
     }
 
     protected String prepareSwaggerMapRefDefinitions(ActionDocMeta actiondocMeta) {
-        return "#/definitions/" + derivedDefinitionName(actiondocMeta.getFormTypeDocMeta());
+        return "#/definitions/" + encode(derivedDefinitionName(actiondocMeta.getFormTypeDocMeta()));
     }
 
     protected List<String> prepareSwaggerMapTags(ActionDocMeta actiondocMeta) {
@@ -691,7 +691,7 @@ public class SwaggerGenerator {
             parameterMap.put("type", "object");
         } else if (!typeDocMeta.getNestTypeDocMetaList().isEmpty()) {
             String definition = putDefinition(definitionsMap, typeDocMeta);
-            parameterMap.put("$ref", encode(definition));
+            parameterMap.put("$ref", definition);
         } else {
             parameterMap.put("type", "object");
             try {
@@ -741,7 +741,7 @@ public class SwaggerGenerator {
         schemaMap.put("type", "array");
         if (!typeDocMeta.getNestTypeDocMetaList().isEmpty()) {
             final String definition = putDefinition(definitionsMap, typeDocMeta);
-            schemaMap.put("items", DfCollectionUtil.newLinkedHashMap("$ref", encode(definition)));
+            schemaMap.put("items", DfCollectionUtil.newLinkedHashMap("$ref", definition));
         } else {
             final Map<String, String> items = DfCollectionUtil.newLinkedHashMap();
             final Class<?> genericType = typeDocMeta.getGenericType();
@@ -780,8 +780,9 @@ public class SwaggerGenerator {
             property.remove("name");
             return property;
         }, (u, v) -> v, LinkedHashMap::new)));
-        definitionsMap.put(derivedDefinitionName(typeDocMeta), schema);
-        return "#/definitions/" + derivedDefinitionName(typeDocMeta);
+        String derivedDefinitionName = derivedDefinitionName(typeDocMeta);
+        definitionsMap.put(derivedDefinitionName, schema);
+        return "#/definitions/" + encode(derivedDefinitionName);
     }
 
     protected List<String> derivedRequiredPropertyNameList(TypeDocMeta typeDocMeta) {
