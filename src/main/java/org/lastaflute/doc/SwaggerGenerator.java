@@ -691,6 +691,8 @@ public class SwaggerGenerator {
             parameterMap.put("type", "object");
         } else if (!typeDocMeta.getNestTypeDocMetaList().isEmpty()) {
             String definition = putDefinition(definitionsMap, typeDocMeta);
+            parameterMap.clear();
+            parameterMap.put("name", typeDocMeta.getPublicName());
             parameterMap.put("$ref", definition);
         } else {
             parameterMap.put("type", "object");
