@@ -20,7 +20,9 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.lang.annotation.Annotation;
+import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -69,6 +71,7 @@ import org.lastaflute.doc.generator.DocumentGeneratorFactory;
 import org.lastaflute.doc.meta.ActionDocMeta;
 import org.lastaflute.doc.meta.TypeDocMeta;
 import org.lastaflute.doc.web.LaActionSwaggerable;
+import org.lastaflute.web.api.JsonParameter;
 import org.lastaflute.web.response.ActionResponse;
 import org.lastaflute.web.response.HtmlResponse;
 import org.lastaflute.web.response.JsonResponse;
@@ -500,7 +503,7 @@ public class SwaggerGenerator {
                 //           }
                 //         }
                 LinkedHashMap<String, String> schemaMap =
-                        DfCollectionUtil.newLinkedHashMap("$ref", prepareSwaggerMapRefDefinitions(actionDocMeta));
+                        DfCollectionUtil.newLinkedHashMap("$ref", encode(prepareSwaggerMapRefDefinitions(actionDocMeta)));
                 if (!Iterable.class.isAssignableFrom(actionDocMeta.getFormTypeDocMeta().getType())) {
                     parameterMap.put("schema", schemaMap);
                 } else {
@@ -677,13 +680,18 @@ public class SwaggerGenerator {
             if (DfStringUtil.is_NotNull_and_NotEmpty(format)) {
                 parameterMap.put("format", format);
             }
+        } else if (typeDocMeta.getAnnotationTypeList().stream().anyMatch(annotationType -> {
+            return JsonParameter.class.isAssignableFrom(annotationType.getClass());
+        })) {
+            parameterMap.put("type", "string");
+            // TODO p1us2er0 set description and example. (2018/09/30)
         } else if (Iterable.class.isAssignableFrom(typeDocMeta.getType())) {
             setupBeanList(typeDocMeta, definitionsMap, typeMap, parameterMap);
         } else if (typeDocMeta.getType().equals(Object.class) || Map.class.isAssignableFrom(typeDocMeta.getType())) {
             parameterMap.put("type", "object");
         } else if (!typeDocMeta.getNestTypeDocMetaList().isEmpty()) {
             String definition = putDefinition(definitionsMap, typeDocMeta);
-            parameterMap.put("$ref", definition);
+            parameterMap.put("$ref", encode(definition));
         } else {
             parameterMap.put("type", "object");
             try {
@@ -733,7 +741,7 @@ public class SwaggerGenerator {
         schemaMap.put("type", "array");
         if (!typeDocMeta.getNestTypeDocMetaList().isEmpty()) {
             final String definition = putDefinition(definitionsMap, typeDocMeta);
-            schemaMap.put("items", DfCollectionUtil.newLinkedHashMap("$ref", definition));
+            schemaMap.put("items", DfCollectionUtil.newLinkedHashMap("$ref", encode(definition)));
         } else {
             final Map<String, String> items = DfCollectionUtil.newLinkedHashMap();
             final Class<?> genericType = typeDocMeta.getGenericType();
@@ -1023,5 +1031,13 @@ public class SwaggerGenerator {
 
     protected OptionalThing<JsonMappingOption> getApplicationJsonMappingOption() {
         return createDocumentGeneratorFactory().getApplicationJsonMappingOption();
+    }
+
+    protected String encode(String value) {
+        try {
+            return URLEncoder.encode(value, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            throw new IllegalArgumentException(e);
+        }
     }
 }

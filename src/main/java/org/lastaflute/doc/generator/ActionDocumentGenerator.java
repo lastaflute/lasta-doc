@@ -188,6 +188,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         actionDocMeta.setFieldTypeDocMetaList(Arrays.stream(methodDeclaringClass.getDeclaredFields()).map(field -> {
             final TypeDocMeta typeDocMeta = new TypeDocMeta();
             typeDocMeta.setName(field.getName());
+            typeDocMeta.setPublicName(adjustPublicFieldName(null, field));
             typeDocMeta.setType(field.getType());
             typeDocMeta.setTypeName(adjustTypeName(field.getGenericType()));
             typeDocMeta.setSimpleTypeName(adjustSimpleTypeName((field.getGenericType())));
@@ -243,6 +244,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     protected TypeDocMeta analyzeMethodParameter(Parameter parameter) {
         final TypeDocMeta parameterDocMeta = new TypeDocMeta();
         parameterDocMeta.setName(parameter.getName());
+        parameterDocMeta.setPublicName(parameter.getName());
         parameterDocMeta.setType(parameter.getType());
         parameterDocMeta.setTypeName(adjustTypeName(parameter.getParameterizedType()));
         parameterDocMeta.setSimpleTypeName(adjustSimpleTypeName(parameter.getParameterizedType()));
@@ -382,6 +384,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
 
             // basic item
             meta.setName(field.getName()); // also property name #question but overridden later, needed? by jflute
+            meta.setPublicName(adjustPublicFieldName(null, field));
             meta.setType(field.getType()); // e.g. String, Integer, SeaPart #question not use resolvedType, right? by jflute
             meta.setTypeName(adjustTypeName(resolvedType));
             meta.setSimpleTypeName(adjustSimpleTypeName(resolvedType));
@@ -527,7 +530,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
 
     protected String adjustPublicFieldName(Class<?> clazz, Field field) {
         // TODO p1us2er0 judge accurately in adjustFieldName() (2017/04/20)
-        if (clazz.getSimpleName().endsWith("Form")) {
+        if (clazz == null || clazz.getSimpleName().endsWith("Form")) {
             return field.getName();
         }
         return getApplicationJsonMappingOption().flatMap(jsonMappingOption -> {
