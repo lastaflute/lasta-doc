@@ -839,9 +839,9 @@ public class SwaggerGenerator {
 
     protected String derivedDefinitionName(TypeDocMeta typeDocMeta) {
         if (typeDocMeta.getTypeName().matches("^[^<]+<(.+)>$")) {
-            return typeDocMeta.getTypeName().replaceAll("^[^<]+<(.+)>$", "$1");
+            return typeDocMeta.getTypeName().replaceAll("^[^<]+<(.+)>$", "$1").replaceAll(" ", "");
         }
-        return typeDocMeta.getTypeName();
+        return typeDocMeta.getTypeName().replaceAll(" ", "");
     }
 
     protected OptionalThing<List<String>> derivedProduces(ActionDocMeta actiondocMeta) {
