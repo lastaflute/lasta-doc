@@ -183,6 +183,7 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
                     TypeDocMeta typeDocMeta = actionDocMeta.getParameterTypeDocMetaList().get(parameterIndex);
                     com.github.javaparser.ast.body.Parameter parameter = methodDeclaration.getParameters().get(parameterIndex);
                     typeDocMeta.setName(parameter.getNameAsString());
+                    typeDocMeta.setPublicName(parameter.getNameAsString());
                     if (DfStringUtil.is_NotNull_and_NotEmpty(comment)) {
                         // parse parameter comment
                         Pattern pattern = Pattern.compile(".*@param\\s?" + parameter.getNameAsString() + "\\s?(.*)\r?\n.*", Pattern.DOTALL);
