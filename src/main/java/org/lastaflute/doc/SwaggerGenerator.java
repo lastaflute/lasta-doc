@@ -247,9 +247,13 @@ public class SwaggerGenerator {
             adaptSecurityDefinitions(swaggerMap, securityDefinitionList);
         });
 
+        //  "paths": {
+        //    "/root/": {
         final Map<String, Map<String, Object>> swaggerPathMap = DfCollectionUtil.newLinkedHashMap();
         swaggerMap.put("paths", swaggerPathMap);
 
+        //   "definitions": {
+        //     "org.docksidestage.app.web.signin.SigninBody": {
         final Map<String, Map<String, Object>> swaggerDefinitionsMap = DfCollectionUtil.newLinkedHashMap();
         swaggerMap.put("definitions", swaggerDefinitionsMap);
 
@@ -531,6 +535,7 @@ public class SwaggerGenerator {
                     return propertyMap;
                 }, (u, v) -> v, LinkedHashMap::new)));
 
+                // Form or Body's definition
                 //   "definitions": {
                 //     "org.docksidestage.app.web.signin.SigninBody": {
                 swaggerDefinitionsMap.put(derivedDefinitionName(actionDocMeta.getFormTypeDocMeta()), schema);
@@ -811,7 +816,7 @@ public class SwaggerGenerator {
     }
 
     protected String putDefinition(Map<String, Map<String, Object>> definitionsMap, TypeDocMeta typeDocMeta) {
-        //     "org.docksidestage.app.web.base.paging.SearchPagingResult\u003corg.docksidestage.app.web.products.ProductsRowResult\u003e": {
+        //     "org.docksidestage.app.web.mypage.MypageResult": {
         //       "type": "object",
         //       "required": [
         //         ...
@@ -819,6 +824,12 @@ public class SwaggerGenerator {
         //       "properties": {
         //         ...
         //       ],
+        //
+        //     ...
+        //
+        //     "org.docksidestage.app.web.base.paging.SearchPagingResult\u003corg.docksidestage.app.web.products.ProductsRowResult\u003e": {
+        //       "type": "object",
+        //       ...
         final Map<String, Object> schema = DfCollectionUtil.newLinkedHashMap();
         schema.put("type", "object");
         final List<String> requiredPropertyNameList = derivedRequiredPropertyNameList(typeDocMeta);
@@ -834,6 +845,7 @@ public class SwaggerGenerator {
             return property;
         }, (u, v) -> v, LinkedHashMap::new)));
         String derivedDefinitionName = derivedDefinitionName(typeDocMeta);
+        System.out.println("@@@: " + derivedDefinitionName);
         definitionsMap.put(derivedDefinitionName, schema);
         return "#/definitions/" + encode(derivedDefinitionName);
     }
