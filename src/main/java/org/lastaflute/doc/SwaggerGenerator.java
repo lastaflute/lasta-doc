@@ -531,6 +531,8 @@ public class SwaggerGenerator {
                     return propertyMap;
                 }, (u, v) -> v, LinkedHashMap::new)));
 
+                //   "definitions": {
+                //     "org.docksidestage.app.web.signin.SigninBody": {
                 swaggerDefinitionsMap.put(derivedDefinitionName(actionDocMeta.getFormTypeDocMeta()), schema);
 
                 //         "schema": {
@@ -809,6 +811,14 @@ public class SwaggerGenerator {
     }
 
     protected String putDefinition(Map<String, Map<String, Object>> definitionsMap, TypeDocMeta typeDocMeta) {
+        //     "org.docksidestage.app.web.base.paging.SearchPagingResult\u003corg.docksidestage.app.web.products.ProductsRowResult\u003e": {
+        //       "type": "object",
+        //       "required": [
+        //         ...
+        //       ],
+        //       "properties": {
+        //         ...
+        //       ],
         final Map<String, Object> schema = DfCollectionUtil.newLinkedHashMap();
         schema.put("type", "object");
         final List<String> requiredPropertyNameList = derivedRequiredPropertyNameList(typeDocMeta);
