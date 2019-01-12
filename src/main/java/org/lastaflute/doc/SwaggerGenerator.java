@@ -507,10 +507,12 @@ public class SwaggerGenerator {
                     }));
                     return parameterMap;
                 }).collect(Collectors.toList()));
-                if (parameterMapList.stream().anyMatch(parameterMap -> "file".equals(parameterMap.get("type")))) {
-                    swaggerHttpMethodMap.put("consumes", Arrays.asList("multipart/form-data"));
-                } else {
-                    swaggerHttpMethodMap.put("consumes", Arrays.asList("application/x-www-form-urlencoded"));
+                if (parameterMapList.stream().anyMatch(parameterMap -> "formData".equals(parameterMap.get("in")))) {
+                    if (parameterMapList.stream().anyMatch(parameterMap -> "file".equals(parameterMap.get("type")))) {
+                        swaggerHttpMethodMap.put("consumes", Arrays.asList("multipart/form-data"));
+                    } else {
+                        swaggerHttpMethodMap.put("consumes", Arrays.asList("application/x-www-form-urlencoded"));
+                    }
                 }
             } else {
                 //     "consumes": [
