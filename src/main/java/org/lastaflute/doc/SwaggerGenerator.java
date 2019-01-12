@@ -496,7 +496,7 @@ public class SwaggerGenerator {
                         parameterMap.put("type", "string");
                     }
                     parameterMap.put("name", typeDocMeta.getPublicName());
-                    parameterMap.put("in", "get".equals(httpMethod) ? "query" : "formData");
+                    parameterMap.put("in", Arrays.asList("get", "delete").contains(httpMethod) ? "query" : "formData");
                     if (parameterMap.containsKey("example")) {
                         parameterMap.put("default", parameterMap.get("example"));
                         parameterMap.remove("example");
