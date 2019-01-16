@@ -223,7 +223,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         });
         actionDocMeta.setParameterTypeDocMetaList(parameterTypeDocMetaList);
         analyzeFormClass(execute).ifPresent(formTypeDocMeta -> {
-                actionDocMeta.setFormTypeDocMeta(formTypeDocMeta);
+            actionDocMeta.setFormTypeDocMeta(formTypeDocMeta);
         });
         actionDocMeta.setReturnTypeDocMeta(analyzeReturnClass(executeMethod));
 
@@ -510,6 +510,9 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         return valuesExp;
     }
 
+    // -----------------------------------------------------
+    //                                         Target Suffix
+    //                                         -------------
     protected boolean isTargetSuffixResolvedClass(Class<?> resolvedClass) {
         // #question suffix but contains? for AllSuffixResult$ResortParkPart? by jflute
         return getTargetTypeSuffixList().stream().anyMatch(suffix -> resolvedClass.getName().contains(suffix));
@@ -524,15 +527,19 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         return TARGET_SUFFIX_LIST;
     }
 
+    // -----------------------------------------------------
+    //                                            Field Name
+    //                                            ----------
     protected String adjustFieldName(Class<?> clazz, Field field) {
         return field.getName();
     }
 
     protected String adjustPublicFieldName(Class<?> clazz, Field field) {
-        // TODO p1us2er0 judge accurately in adjustFieldName() (2017/04/20)
-        if (clazz == null || clazz.getSimpleName().endsWith("Form")) {
+        // done (by jflute 2019/01/17) p1us2er0 judge accurately in adjustFieldName() (2017/04/20)
+        if (clazz == null || isActionFormComponentType(clazz)) {
             return field.getName();
         }
+        // basically JsonBody or JsonResult here
         return getApplicationJsonMappingOption().flatMap(jsonMappingOption -> {
             return jsonMappingOption.getFieldNaming().map(naming -> {
                 if (naming == JsonFieldNaming.IDENTITY) {
@@ -544,6 +551,12 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
                 }
             });
         }).orElse(field.getName());
+    }
+
+    protected boolean isActionFormComponentType(Class<?> clazz) { // and not JSON body
+        // #thinking jflute using Form meta of LastaFlute is better? (2019/01/17)
+        return clazz.getSimpleName().endsWith("Form") // just form class
+                || clazz.getName().contains("Form$"); // inner class of Form (e.g. Part)
     }
 
     // ===================================================================================
