@@ -847,7 +847,6 @@ public class SwaggerGenerator {
             return property;
         }, (u, v) -> v, LinkedHashMap::new)));
         String derivedDefinitionName = derivedDefinitionName(typeDocMeta);
-        System.out.println("@@@: " + derivedDefinitionName);
         definitionsMap.put(derivedDefinitionName, schema);
         return "#/definitions/" + encode(derivedDefinitionName);
     }
