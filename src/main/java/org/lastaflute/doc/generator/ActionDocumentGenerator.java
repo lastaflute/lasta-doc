@@ -540,6 +540,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
             return field.getName();
         }
         // basically JsonBody or JsonResult here
+        // (Thymeleaf beans cannot be analyzed as framework so not here)
         return getApplicationJsonMappingOption().flatMap(jsonMappingOption -> {
             return jsonMappingOption.getFieldNaming().map(naming -> {
                 if (naming == JsonFieldNaming.IDENTITY) {
