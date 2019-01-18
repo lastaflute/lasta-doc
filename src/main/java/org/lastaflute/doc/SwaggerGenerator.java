@@ -75,6 +75,7 @@ import org.lastaflute.doc.meta.TypeDocMeta;
 import org.lastaflute.doc.web.LaActionSwaggerable;
 import org.lastaflute.web.api.JsonParameter;
 import org.lastaflute.web.response.ActionResponse;
+import org.lastaflute.web.response.ApiResponse;
 import org.lastaflute.web.response.HtmlResponse;
 import org.lastaflute.web.response.JsonResponse;
 import org.lastaflute.web.response.StreamResponse;
@@ -648,7 +649,10 @@ public class SwaggerGenerator {
         });
         final Map<String, Object> response = DfCollectionUtil.newLinkedHashMap("description", "success");
         final TypeDocMeta returnTypeDocMeta = actiondocMeta.getReturnTypeDocMeta();
-        if (!Arrays.asList(void.class, Void.class).contains(returnTypeDocMeta.getGenericType())) {
+        if (!Arrays.asList(HtmlResponse.class, StreamResponse.class)
+                .stream()
+                .anyMatch(clazz -> clazz.isAssignableFrom(returnTypeDocMeta.getType()))
+                && !Arrays.asList(void.class, Void.class).contains(returnTypeDocMeta.getGenericType())) {
             final Map<String, Object> parameterMap = toParameterMap(returnTypeDocMeta, swaggerDefinitionsMap);
             parameterMap.remove("name");
             parameterMap.remove("required");
@@ -659,7 +663,9 @@ public class SwaggerGenerator {
             }
         }
         responseMap.put("200", response);
-        responseMap.put("400", DfCollectionUtil.newLinkedHashMap("description", "client error"));
+        if (ApiResponse.class.isAssignableFrom(returnTypeDocMeta.getType())) {
+            responseMap.put("400", DfCollectionUtil.newLinkedHashMap("description", "client error"));
+        }
     }
 
     // ===================================================================================
