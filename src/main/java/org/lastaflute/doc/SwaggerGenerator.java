@@ -55,7 +55,6 @@ import javax.validation.constraints.Size;
 import org.dbflute.jdbc.Classification;
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
-import org.dbflute.util.DfReflectionUtil;
 import org.dbflute.util.DfResourceUtil;
 import org.dbflute.util.DfStringUtil;
 import org.dbflute.util.DfTypeUtil;
@@ -145,6 +144,11 @@ public class SwaggerGenerator {
     //                                                                          ==========
     protected static final Pattern HTTP_METHOD_PATTERN = Pattern.compile("(.+)\\$.+");
 
+    // ===================================================================================
+    //                                                                           Attribute
+    //                                                                           =========
+    protected DocumentGenerator documentGenerator = createDocumentGenerator();
+    
     // ===================================================================================
     //                                                                            Generate
     //                                                                            ========
@@ -745,31 +749,27 @@ public class SwaggerGenerator {
             setupBeanList(typeDocMeta, definitionsMap, typeMap, parameterMap);
         } else if (typeDocMeta.getType().equals(Object.class) || Map.class.isAssignableFrom(typeDocMeta.getType())) {
             parameterMap.put("type", "object");
-        } else if (!typeDocMeta.getNestTypeDocMetaList().isEmpty()) {
+        } else if (Enum.class.isAssignableFrom(typeDocMeta.getType())) {
+            parameterMap.put("type", "string");
+            @SuppressWarnings("unchecked")
+            final Class<? extends Enum<?>> enumClass = (Class<? extends Enum<?>>) typeDocMeta.getType();
+            final List<Map<String, String>> enumMap = buildEnumMapList(enumClass);
+            parameterMap.put("enum", enumMap.stream().map(e -> e.get("code")).collect(Collectors.toList()));
+            String description = typeDocMeta.getDescription();
+            if (DfStringUtil.is_Null_or_Empty(description)) {
+                description = typeDocMeta.getPublicName();
+            }
+            description += ":" + enumMap.stream().map(e -> {
+                return String.format(" * `%s` - %s, %s.", e.get("code"), e.get("name"), e.get("alias"));
+            }).collect(Collectors.joining());
+            parameterMap.put("description", description);
+        } else if (!createActionDocumentGenerator().getNativeClassList().contains(typeDocMeta.getType())) {
             String definition = putDefinition(definitionsMap, typeDocMeta);
             parameterMap.clear();
             parameterMap.put("name", typeDocMeta.getPublicName());
             parameterMap.put("$ref", definition);
         } else {
             parameterMap.put("type", "object");
-            try {
-                final Class<?> clazz = DfReflectionUtil.forName(typeDocMeta.getTypeName());
-                if (Enum.class.isAssignableFrom(clazz)) {
-                    parameterMap.put("type", "string");
-                    @SuppressWarnings("unchecked")
-                    final Class<? extends Enum<?>> enumClass = (Class<? extends Enum<?>>) clazz;
-                    final List<Map<String, String>> enumMap = buildEnumMapList(enumClass);
-                    parameterMap.put("enum", enumMap.stream().map(e -> e.get("code")).collect(Collectors.toList()));
-                    String description = typeDocMeta.getDescription();
-                    if (DfStringUtil.is_Null_or_Empty(description)) {
-                        description = typeDocMeta.getPublicName();
-                    }
-                    description += ":" + enumMap.stream().map(e -> {
-                        return String.format(" * `%s` - %s, %s.", e.get("code"), e.get("name"), e.get("alias"));
-                    }).collect(Collectors.joining());
-                    parameterMap.put("description", description);
-                }
-            } catch (RuntimeException ignored) {}
         }
 
         typeDocMeta.getAnnotationTypeList().forEach(annotation -> {
@@ -838,22 +838,25 @@ public class SwaggerGenerator {
         //     "org.docksidestage.app.web.base.paging.SearchPagingResult\u003corg.docksidestage.app.web.products.ProductsRowResult\u003e": {
         //       "type": "object",
         //       ...
-        final Map<String, Object> schema = DfCollectionUtil.newLinkedHashMap();
-        schema.put("type", "object");
-        final List<String> requiredPropertyNameList = derivedRequiredPropertyNameList(typeDocMeta);
-        if (!requiredPropertyNameList.isEmpty()) {
-            schema.put("required", requiredPropertyNameList);
-        }
-        schema.put("properties", typeDocMeta.getNestTypeDocMetaList().stream().map(nestTypeDocMeta -> {
-            return toParameterMap(nestTypeDocMeta, definitionsMap);
-        }).collect(Collectors.toMap(key -> key.get("name"), value -> {
-            // TODO p1us2er0 remove name. refactor required. (2017/10/12)
-            final LinkedHashMap<String, Object> property = DfCollectionUtil.newLinkedHashMap(value);
-            property.remove("name");
-            return property;
-        }, (u, v) -> v, LinkedHashMap::new)));
         String derivedDefinitionName = derivedDefinitionName(typeDocMeta);
-        definitionsMap.put(derivedDefinitionName, schema);
+        if (!definitionsMap.containsKey(derivedDefinitionName)) {
+            final Map<String, Object> schema = DfCollectionUtil.newLinkedHashMap();
+            schema.put("type", "object");
+            final List<String> requiredPropertyNameList = derivedRequiredPropertyNameList(typeDocMeta);
+            if (!requiredPropertyNameList.isEmpty()) {
+                schema.put("required", requiredPropertyNameList);
+            }
+            schema.put("properties", typeDocMeta.getNestTypeDocMetaList().stream().map(nestTypeDocMeta -> {
+                return toParameterMap(nestTypeDocMeta, definitionsMap);
+            }).collect(Collectors.toMap(key -> key.get("name"), value -> {
+                // TODO p1us2er0 remove name. refactor required. (2017/10/12)
+                final LinkedHashMap<String, Object> property = DfCollectionUtil.newLinkedHashMap(value);
+                property.remove("name");
+                return property;
+            }, (u, v) -> v, LinkedHashMap::new)));
+            
+            definitionsMap.put(derivedDefinitionName, schema);
+        }
         return "#/definitions/" + encode(derivedDefinitionName);
     }
 
@@ -959,7 +962,7 @@ public class SwaggerGenerator {
     }
 
     protected ActionDocumentGenerator createActionDocumentGenerator() {
-        return createDocumentGenerator().createActionDocumentGenerator();
+        return documentGenerator.createActionDocumentGenerator();
     }
 
     protected OptionalThing<String> prepareApplicationVersion() {

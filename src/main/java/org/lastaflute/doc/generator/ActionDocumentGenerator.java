@@ -333,7 +333,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     protected void derivedManualReturnClass(Method method, TypeDocMeta returnDocMeta) {
     }
 
-    protected List<Class<?>> getNativeClassList() {
+    public List<Class<?>> getNativeClassList() {
         return NATIVE_TYPE_LIST;
     }
 
