@@ -58,7 +58,7 @@ public class SourceParserReflectorFactory {
         });
     }
 
-    public void validateVersion(float leastVersion) {
+    protected void validateVersion(float leastVersion) {
         getJavaparserVersion().ifPresent(version -> {
             _log.debug("...Loading java parser for version: {}", version);
             String majorMinorVersionStr = version.replaceAll("[^\\d.]", "").replaceAll("(\\d+(\\.\\d+)?).*", "$1");

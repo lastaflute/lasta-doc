@@ -41,6 +41,7 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.nodeTypes.NodeWithJavadoc;
 import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
@@ -287,22 +288,31 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
     public void reflect(TypeDocMeta typeDocMeta, Class<?> clazz) {
         List<Class<?>> classList = DfCollectionUtil.newArrayList();
         for (Class<?> targetClass = clazz; targetClass != null; targetClass = targetClass.getSuperclass()) {
-            classList.add(targetClass);
+            if (!targetClass.isPrimitive() && !Number.class.isAssignableFrom(targetClass)
+                    && !Arrays.asList(Object.class, String.class).contains(targetClass)) {
+                classList.add(targetClass);
+            }
         }
         Collections.reverse(classList);
         classList.forEach(targetClass -> {
             parseClass(targetClass).ifPresent(compilationUnit -> {
-                VoidVisitorAdapter<TypeDocMeta> adapter = createTypeDocMetaVisitorAdapter();
+                VoidVisitorAdapter<TypeDocMeta> adapter = createTypeDocMetaVisitorAdapter(clazz);
                 adapter.visit(compilationUnit, typeDocMeta);
             });
         });
     }
 
-    protected VoidVisitorAdapter<TypeDocMeta> createTypeDocMetaVisitorAdapter() {
-        return new TypeDocMetaVisitorAdapter();
+    protected VoidVisitorAdapter<TypeDocMeta> createTypeDocMetaVisitorAdapter(Class<?> clazz) {
+        return new TypeDocMetaVisitorAdapter(clazz);
     }
 
     public class TypeDocMetaVisitorAdapter extends VoidVisitorAdapter<TypeDocMeta> {
+
+        private Class<?> clazz;
+        
+        public TypeDocMetaVisitorAdapter(Class<?> clazz) {
+            this.clazz = clazz;
+        }
 
         @Override
         public void visit(ClassOrInterfaceDeclaration classOrInterfaceDeclaration, TypeDocMeta typeDocMeta) {
@@ -316,11 +326,9 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
                 String comment = adjustComment(classOrInterfaceDeclaration);
                 if (DfStringUtil.is_NotNull_and_NotEmpty(comment)) {
                     typeDocMeta.setComment(comment);
-                    if (DfStringUtil.is_NotNull_and_NotEmpty(comment)) {
-                        Matcher matcher = CLASS_METHOD_COMMENT_END_PATTERN.matcher(comment);
-                        if (matcher.find()) {
-                            typeDocMeta.setDescription(matcher.group(1));
-                        }
+                    Matcher matcher = CLASS_METHOD_COMMENT_END_PATTERN.matcher(comment);
+                    if (matcher.find()) {
+                        typeDocMeta.setDescription(matcher.group(1));
                     }
                 }
             }
@@ -336,11 +344,18 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
             if (fieldDeclaration.getVariables().stream().anyMatch(variable -> variable.getNameAsString().equals(typeDocMeta.getName()))) {
                 String comment = adjustComment(fieldDeclaration);
                 if (DfStringUtil.is_NotNull_and_NotEmpty(comment)) {
-                    typeDocMeta.setComment(comment);
-                    Matcher matcher = FIELD_COMMENT_END_PATTERN.matcher(saveFieldCommentSpecialExp(comment));
-                    if (matcher.find()) {
-                        String description = matcher.group(1).trim();
-                        typeDocMeta.setDescription(restoreFieldCommentSpecialExp(description));
+                    if (DfStringUtil.is_Null_or_Empty(typeDocMeta.getComment())
+                            || fieldDeclaration.getParentNode().map(parentNode -> {
+                                @SuppressWarnings("unchecked")
+                                TypeDeclaration<TypeDeclaration<?>> typeDeclaration = (TypeDeclaration<TypeDeclaration<?>>) parentNode;
+                                return typeDeclaration.getNameAsString().equals(clazz.getSimpleName());
+                            }).orElse(false)) {
+                        typeDocMeta.setComment(comment);
+                        Matcher matcher = FIELD_COMMENT_END_PATTERN.matcher(saveFieldCommentSpecialExp(comment));
+                        if (matcher.find()) {
+                            String description = matcher.group(1).trim();
+                            typeDocMeta.setDescription(restoreFieldCommentSpecialExp(description));
+                        }
                     }
                 }
             }

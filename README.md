@@ -1,6 +1,6 @@
 Lasta Doc
 =======================
-LastaDoc library
+The engine library for generating LastaDoc, called 'lasta-doc engine'
 
 # Information
 ## Maven Dependency in pom.xml
@@ -8,7 +8,7 @@ LastaDoc library
 <dependency>
     <groupId>org.lastaflute.doc</groupId>
     <artifactId>lasta-doc</artifactId>
-    <version>0.3.4</version>
+    <version>0.3.5</version>
 </dependency>
 ```
 
