@@ -13,17 +13,23 @@
  * either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-package org.lastaflute.doc.web;
+package org.lastaflute.doc.unit.mock;
 
-import java.util.Map;
+import javax.validation.Valid;
 
-import org.lastaflute.web.response.JsonResponse;
+import org.lastaflute.web.validation.Required;
 
 /**
- * @author p1us2er0
- * @since 0.2.6 (2017/06/11 Sunday)
+ * @author jflute
  */
-public interface LaActionSwaggerable {
+public class SeaForm {
 
-    JsonResponse<Map<String, Object>> json();
+    @Valid
+    public HangarPart hangar;
+
+    public static class HangarPart {
+
+        @Required
+        public String showName;
+    }
 }

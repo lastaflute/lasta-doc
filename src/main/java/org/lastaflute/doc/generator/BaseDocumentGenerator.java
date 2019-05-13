@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2017 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,23 +44,34 @@ public class BaseDocumentGenerator {
     //                                    ------------------
     protected List<String> analyzeAnnotationList(List<Annotation> annotationList) {
         return annotationList.stream().map(annotation -> {
-            final Class<? extends Annotation> annotationType = annotation.annotationType();
-            final String typeName = adjustSimpleTypeName(annotationType);
+            final Class<? extends Annotation> annotationType = annotation.annotationType(); // e.g. @SeaPark
+            final String typeName = adjustSimpleTypeName(annotationType); // e.g. SeaPark
 
+            // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+            // e.g.
+            //  public @interface SeaPark {
+            //      String dockside() default "over";
+            //      String hangar() default "mystic";
+            //  }
+            //
+            //  @SeaPark(hangar="shadow")
+            //  public String maihama;
+            // _/_/_/_/_/_/_/_/_/_/
+            // you can get method of concrete annotation by getDeclaredMethods()
             final Map<String, Object> methodMap = Arrays.stream(annotationType.getDeclaredMethods()).filter(method -> {
-                final Object value = DfReflectionUtil.invoke(method, annotation, (Object[]) null);
-                final Object defaultValue = method.getDefaultValue();
-                if (Objects.equals(value, defaultValue)) {
+                final Object value = DfReflectionUtil.invoke(method, annotation, (Object[]) null); // e.g. shadow (of hangar)
+                final Object defaultValue = method.getDefaultValue(); // e.g. mystic (of hangar)
+                if (Objects.equals(value, defaultValue)) { // means non-specified attribute
                     return false;
                 }
-                if (method.getReturnType().isArray() && Arrays.equals((Object[]) value, (Object[]) defaultValue)) {
+                if (method.getReturnType().isArray() && Arrays.equals((Object[]) value, (Object[]) defaultValue)) { // means non-specified attribute
                     return false;
                 }
-                return true;
-            }).collect(Collectors.toMap(key -> {
-                return key.getName();
-            }, value -> {
-                Object data = DfReflectionUtil.invoke(value, annotation, (Object[]) null);
+                return true; // specified attributes only here
+            }).collect(Collectors.toMap(method -> {
+                return method.getName();
+            }, method -> {
+                Object data = DfReflectionUtil.invoke(method, annotation, (Object[]) null); // e.g. shadow (of hangar)
                 if (data != null && data.getClass().isArray()) {
                     final List<?> dataList = Arrays.asList((Object[]) data);
                     if (dataList.isEmpty()) {

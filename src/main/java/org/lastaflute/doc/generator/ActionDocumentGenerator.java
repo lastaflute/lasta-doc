@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2017 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -513,18 +513,27 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     // -----------------------------------------------------
     //                                         Target Suffix
     //                                         -------------
+    // target means e.g. Form, Result or their inner class (Part class)
     protected boolean isTargetSuffixResolvedClass(Class<?> resolvedClass) {
-        // #question suffix but contains? for AllSuffixResult$ResortParkPart? by jflute
-        return getTargetTypeSuffixList().stream().anyMatch(suffix -> resolvedClass.getName().contains(suffix));
+        return getTargetTypeSuffixList().stream().anyMatch(suffix -> {
+            final String fqcn = resolvedClass.getName(); // may be inner class e.g. SeaForm$MysticPart
+            return determineTargetSuffixResolvedClass(fqcn, suffix);
+        });
     }
 
     protected boolean isTargetSuffixFieldGeneric(Field field) {
-        // #question suffix but contains? by jflute
-        return getTargetTypeSuffixList().stream().anyMatch(suffix -> field.getGenericType().getTypeName().contains(suffix));
+        return getTargetTypeSuffixList().stream().anyMatch(suffix -> {
+            final String fqcn = field.getGenericType().getTypeName(); // may be inner class e.g. SeaForm$MysticPart
+            return determineTargetSuffixResolvedClass(fqcn, suffix);
+        });
     }
 
     protected List<String> getTargetTypeSuffixList() {
-        return TARGET_SUFFIX_LIST;
+        return TARGET_SUFFIX_LIST; // e.g. Form, Result
+    }
+
+    protected boolean determineTargetSuffixResolvedClass(String fqcn, String suffix) {
+        return fqcn.endsWith(suffix) || fqcn.contains(suffix + "$"); // e.g. SeaForm or SeaForm$MysticPart
     }
 
     // -----------------------------------------------------

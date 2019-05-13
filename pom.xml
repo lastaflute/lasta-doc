@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.lastaflute.doc</groupId>
 	<artifactId>lasta-doc</artifactId>
-	<version>0.3.5</version>
+	<version>0.3.6</version>
 	<packaging>jar</packaging>
 
 	<name>lasta-doc</name>
@@ -13,7 +13,8 @@
 	<inceptionYear>2015</inceptionYear>
 
 	<properties>
-		<lastaflute.version>1.0.0</lastaflute.version>
+		<dbflute.version>1.1.7</dbflute.version> <!-- about one year old (from now) -->
+		<lastaflute.version>1.0.8</lastaflute.version> <!-- about one year old (from now) -->
 		<lasta.job.version>0.5.3</lasta.job.version>
 		<servlet.version>3.1.0</servlet.version>
 		<javaparser.version>3.10.2</javaparser.version>
@@ -191,6 +192,13 @@
 		<!-- = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = -->
 		<!--																Main Framework -->
 		<!--																 = = = = = = = -->
+		<!-- dbflute -->
+		<dependency>
+			<groupId>org.dbflute</groupId>
+			<artifactId>dbflute-runtime</artifactId>
+			<version>${dbflute.version}</version>
+		</dependency>
+
 		<!-- lastaflute -->
 		<dependency>
 			<groupId>org.lastaflute</groupId>
