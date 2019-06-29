@@ -37,7 +37,7 @@ public class SourceParserReflectorFactory {
     //                                                                          ==========
     private static final Logger _log = LoggerFactory.getLogger(SourceParserReflectorFactory.class);
     private static final String JAVA_PARSER_CLASS_NAME = "com.github.javaparser.JavaParser";
-    private static final float JAVA_PARSER_VERSION = 3.1f;
+    private static final float JAVA_PARSER_VERSION = 3.14f;
 
     // ===================================================================================
     //                                                                           Reflector

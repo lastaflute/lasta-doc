@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.lastaflute.doc</groupId>
 	<artifactId>lasta-doc</artifactId>
-	<version>0.3.6</version>
+	<version>0.3.7-RC1</version>
 	<packaging>jar</packaging>
 
 	<name>lasta-doc</name>
@@ -17,7 +17,7 @@
 		<lastaflute.version>1.0.8</lastaflute.version> <!-- about one year old (from now) -->
 		<lasta.job.version>0.5.3</lasta.job.version>
 		<servlet.version>3.1.0</servlet.version>
-		<javaparser.version>3.10.2</javaparser.version>
+		<javaparser.version>3.14.5</javaparser.version>
 		<utflute.version>0.8.9</utflute.version>
 	</properties>
 
