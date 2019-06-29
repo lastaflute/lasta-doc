@@ -103,7 +103,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     protected final List<String> srcDirList;
 
     /** depth of analyzed target, to avoid cyclic analyzing. */
-    protected int depth; // #question depth count down? by jflute
+    protected final int depth; // #question depth count down? by jflute
 
     /** The optional reflector of source parser, e.g. java parser. (NotNull, EmptyAllowed) */
     protected final OptionalThing<SourceParserReflector> sourceParserReflector;
@@ -475,7 +475,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
                 } else {
                     // overriding type names that are already set before
                     final String typeName = meta.getTypeName();
-                    meta.setTypeName(adjustTypeName(typeName) + "<" + adjustSimpleTypeName(genericTypeName) + ">"); // #question why simple? by jflute
+                    meta.setTypeName(adjustTypeName(typeName) + "<" + adjustTypeName(genericTypeName) + ">");
                     meta.setSimpleTypeName(adjustSimpleTypeName(typeName) + "<" + adjustSimpleTypeName(genericTypeName) + ">");
                 }
             }
@@ -572,16 +572,6 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     // ===================================================================================
     //                                                                     Action Property
     //                                                                     ===============
-    // #question who calls? by jflute
-    public Map<String, Map<String, String>> generateActionPropertyNameMap(List<ActionDocMeta> actionDocMetaList) {
-        final Map<String, Map<String, String>> propertyNameMap = actionDocMetaList.stream().collect(Collectors.toMap(key -> {
-            return key.getUrl().replaceAll("\\{.*", "").replaceAll("/$", "").replaceAll("/", "_");
-        }, value -> {
-            return convertPropertyNameMap("", value.getFormTypeDocMeta());
-        }, (u, v) -> v, LinkedHashMap::new));
-        return propertyNameMap;
-    }
-
     protected Map<String, String> convertPropertyNameMap(String parentName, TypeDocMeta typeDocMeta) {
         if (typeDocMeta == null) {
             return DfCollectionUtil.newLinkedHashMap();
