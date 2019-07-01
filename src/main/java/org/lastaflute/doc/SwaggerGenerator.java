@@ -149,7 +149,7 @@ public class SwaggerGenerator {
     //                                                                           Attribute
     //                                                                           =========
     protected DocumentGenerator documentGenerator = createDocumentGenerator();
-    
+
     // ===================================================================================
     //                                                                            Generate
     //                                                                            ========
@@ -855,7 +855,7 @@ public class SwaggerGenerator {
                 property.remove("name");
                 return property;
             }, (u, v) -> v, LinkedHashMap::new)));
-            
+
             definitionsMap.put(derivedDefinitionName, schema);
         }
         return "#/definitions/" + encode(derivedDefinitionName);
@@ -1026,7 +1026,8 @@ public class SwaggerGenerator {
         Map<Class<?>, SwaggerType> typeMap = createTypeMap();
         if (typeMap.containsKey(typeDocMeta.getType())) {
             SwaggerType swaggerType = typeMap.get(typeDocMeta.getType());
-            Object defaultValue = swaggerType.defaultValueFunction.apply(typeDocMeta, deriveDefaultValueByComment(typeDocMeta.getComment()));
+            Object defaultValue =
+                    swaggerType.defaultValueFunction.apply(typeDocMeta, deriveDefaultValueByComment(typeDocMeta.getComment()));
             if (defaultValue != null) {
                 return OptionalThing.of(defaultValue);
             }
@@ -1126,14 +1127,14 @@ public class SwaggerGenerator {
             throw new IllegalArgumentException(e);
         }
     }
-    
+
     private class SwaggerType {
-        
-        private String type;
-        
-        private String format;
-        
-        private BiFunction<TypeDocMeta, Object, Object> defaultValueFunction;
+
+        private final String type;
+
+        private final String format;
+
+        private final BiFunction<TypeDocMeta, Object, Object> defaultValueFunction;
 
         public SwaggerType(String type, String format, BiFunction<TypeDocMeta, Object, Object> defaultValueFunction) {
             this.type = type;
