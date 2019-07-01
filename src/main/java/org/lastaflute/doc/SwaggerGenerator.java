@@ -1151,7 +1151,7 @@ public class SwaggerGenerator {
                     br.addItem("Swagger Default Value");
                     br.addElement(value);
                     final String msg = br.buildExceptionMessage();
-                    throw new SwaggerDefaultValueParseFailureException(msg);
+                    throw new SwaggerDefaultValueParseFailureException(msg, e);
                 }
             };
         }
