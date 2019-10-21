@@ -14,7 +14,7 @@
 
 	<properties>
 		<dbflute.version>1.1.8</dbflute.version> <!-- about one year old (from now) -->
-		<lastaflute.version>1.0.8</lastaflute.version> <!-- about one year old (from now) -->
+		<lastaflute.version>1.1.0</lastaflute.version> <!-- about one year old (from now) -->
 		<lasta.job.version>0.5.3</lasta.job.version>
 		<servlet.version>3.1.0</servlet.version>
 		<javaparser.version>3.14.5</javaparser.version>
