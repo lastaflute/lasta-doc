@@ -34,6 +34,7 @@ public class TypeDocMeta {
     // -----------------------------------------------------
     //                                            Basic Item
     //                                            ----------
+    // #hope e.g. comment in javadoc by jflute (2019/07/01)
     /** name. */
     private String name;
 
