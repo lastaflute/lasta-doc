@@ -8,7 +8,7 @@ The engine library for generating LastaDoc, called 'lasta-doc engine'
 <dependency>
     <groupId>org.lastaflute.doc</groupId>
     <artifactId>lasta-doc</artifactId>
-    <version>0.3.6</version>
+    <version>0.3.7</version>
 </dependency>
 ```
 
