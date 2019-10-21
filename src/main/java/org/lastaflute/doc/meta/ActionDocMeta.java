@@ -41,7 +41,7 @@ public class ActionDocMeta {
     //                                            Class Item
     //                                            ----------
     /** The type declaring the execute method. e.g. org.docksidestage.app.web.sea.SeaAction.class (NotNull: after setup) */
-    private transient Class<?> type; // #question why transient? by jflute
+    private transient Class<?> type; // exclude with gson serialize.
 
     /** The full name of type declaring the execute method. e.g. "org.docksidestage.app.web.sea.SeaAction" (NotNull: after setup) */
     private String typeName;
@@ -73,11 +73,11 @@ public class ActionDocMeta {
     // -----------------------------------------------------
     //                                       Annotation Item
     //                                       ---------------
-    /** The list of annotation type defined at both action and execute method. (Required) */
-    public transient List<Annotation> annotationTypeList; // #question why transient, public? by jflute
+    /** The list of annotation type defined at both action and execute method. e.g. (NotNull: after setup) */
+    private transient List<Annotation> annotationTypeList; // exclude with gson serialize.
 
-    /** annotation list. */
-    private List<String> annotationList; // #question what is this? by jflute
+    /** annotation list. e.g. ["Required", "Length{max\u003d5}"] (NotNull: after setup) */
+    private List<String> annotationList;
 
     // -----------------------------------------------------
     //                                           IN/OUT Item

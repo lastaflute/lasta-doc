@@ -103,7 +103,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     protected final List<String> srcDirList;
 
     /** depth of analyzed target, to avoid cyclic analyzing. */
-    protected int depth; // #question depth count down? by jflute
+    protected final int depth;
 
     /** The optional reflector of source parser, e.g. java parser. (NotNull, EmptyAllowed) */
     protected final OptionalThing<SourceParserReflector> sourceParserReflector;
@@ -276,7 +276,8 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
                 formDocMeta.setSimpleTypeName(adjustSimpleTypeName(lastafluteFormMeta.getFormType()));
             });
             final Class<?> formType = lastafluteFormMeta.getListFormParameterGenericType().orElse(lastafluteFormMeta.getFormType());
-            final Map<String, Type> genericParameterTypesMap = DfCollectionUtil.newLinkedHashMap(); // #question can be emptyList()? by jflute
+            // #question can be emptyMap()? it seems like read-only in analyzeProperties() by jflute (2019/07/01)
+            final Map<String, Type> genericParameterTypesMap = DfCollectionUtil.newLinkedHashMap();
             final List<TypeDocMeta> propertyDocMetaList = analyzeProperties(formType, genericParameterTypesMap, depth);
             formDocMeta.setNestTypeDocMetaList(propertyDocMetaList);
             sourceParserReflector.ifPresent(sourceParserReflector -> {
@@ -340,6 +341,9 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     // -----------------------------------------------------
     //                                    Analyze Properties
     //                                    ------------------
+    // #hope separate analyzeProperties() from this generator (because depth is shadowed) by jflute (2019/07/01)
+    // (also analyzePropertyField())
+    //
     // for e.g. form type, return type, nested property type
     protected List<TypeDocMeta> analyzeProperties(Class<?> propertyOwner, Map<String, Type> genericParameterTypesMap, int depth) {
         if (depth < 0) {
@@ -348,7 +352,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         final Set<Field> fieldSet = extractWholeFieldSet(propertyOwner);
         return fieldSet.stream().filter(field -> { // also contains private fields and super's fields
             return !exceptsField(field);
-        }).map(field -> { // #question contains private fields, right? by jflute
+        }).map(field -> { // #question can private fields be treated as property? by jflute
             return analyzePropertyField(propertyOwner, genericParameterTypesMap, depth, field);
         }).collect(Collectors.toList());
     }
@@ -385,7 +389,8 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
             // basic item
             meta.setName(field.getName()); // also property name #question but overridden later, needed? by jflute
             meta.setPublicName(adjustPublicFieldName(null, field));
-            meta.setType(field.getType()); // e.g. String, Integer, SeaPart #question not use resolvedType, right? by jflute
+            // #question type property is not related to resolvedType, is it OK? by jflute
+            meta.setType(field.getType()); // e.g. String, Integer, SeaPart
             meta.setTypeName(adjustTypeName(resolvedType));
             meta.setSimpleTypeName(adjustSimpleTypeName(resolvedType));
 
@@ -475,7 +480,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
                 } else {
                     // overriding type names that are already set before
                     final String typeName = meta.getTypeName();
-                    meta.setTypeName(adjustTypeName(typeName) + "<" + adjustSimpleTypeName(genericTypeName) + ">"); // #question why simple? by jflute
+                    meta.setTypeName(adjustTypeName(typeName) + "<" + adjustTypeName(genericTypeName) + ">");
                     meta.setSimpleTypeName(adjustSimpleTypeName(typeName) + "<" + adjustSimpleTypeName(genericTypeName) + ">");
                 }
             }
@@ -572,16 +577,6 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     // ===================================================================================
     //                                                                     Action Property
     //                                                                     ===============
-    // #question who calls? by jflute
-    public Map<String, Map<String, String>> generateActionPropertyNameMap(List<ActionDocMeta> actionDocMetaList) {
-        final Map<String, Map<String, String>> propertyNameMap = actionDocMetaList.stream().collect(Collectors.toMap(key -> {
-            return key.getUrl().replaceAll("\\{.*", "").replaceAll("/$", "").replaceAll("/", "_");
-        }, value -> {
-            return convertPropertyNameMap("", value.getFormTypeDocMeta());
-        }, (u, v) -> v, LinkedHashMap::new));
-        return propertyNameMap;
-    }
-
     protected Map<String, String> convertPropertyNameMap(String parentName, TypeDocMeta typeDocMeta) {
         if (typeDocMeta == null) {
             return DfCollectionUtil.newLinkedHashMap();

@@ -37,6 +37,7 @@ import org.lastaflute.doc.meta.JobDocMeta;
 import org.lastaflute.doc.meta.TypeDocMeta;
 
 import com.github.javaparser.JavaParser;
+import com.github.javaparser.ParseResult;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
@@ -385,6 +386,7 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
     //                                                                         Parse Class
     //                                                                         ===========
     protected OptionalThing<CompilationUnit> parseClass(Class<?> clazz) {
+        JavaParser javaParser = new JavaParser();
         for (String srcDir : srcDirList) {
             File file = new File(srcDir, clazz.getName().replace('.', File.separatorChar) + ".java");
             if (!file.exists()) {
@@ -405,7 +407,10 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
             cacheCompilationUnit.fileLastModified = file.lastModified();
             cacheCompilationUnit.fileLength = file.length();
             try {
-                cacheCompilationUnit.compilationUnit = JavaParser.parse(file);
+                ParseResult<CompilationUnit> parse = javaParser.parse(file);
+                parse.getResult().ifPresent(compilationUnit -> {
+                    cacheCompilationUnit.compilationUnit = compilationUnit;                    
+                });
             } catch (FileNotFoundException e) {
                 throw new IllegalStateException("Source file don't exist.");
             }
